@@ -35,3 +35,15 @@ Never commit the JKS or passwords into the repository.
 
 ## Permissions
 Camera and location permissions are requested at runtime. Location is optional for taking a photo; without a fix the camera should still capture, with unavailable location fields.
+
+
+## Brand assets integrated
+- Android launcher icons (legacy density PNGs and adaptive icon XML)
+- Approved navy/teal Wiz GPS Camera icon and brand colors
+- Splash artwork, full logo and Play Store icon in `app/src/main/assets/`
+- HTML privacy policy at `privacy-policy.html`
+
+The splash artwork and Play Store artwork are included as assets; the splash artwork is not yet wired to the Android SplashScreen API. Review the privacy policy contact email and final map/geocoding providers before publishing.
+
+## Production builds
+GitHub Actions workflow `.github/workflows/android.yml` builds a signed release APK and AAB using repository secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`.
