@@ -10,14 +10,15 @@ Wiz Labs Android GPS camera starter project.
 
 ## Current implementation
 - CameraX live preview and capture
-- Fused Location Provider last-known location
-- Address lookup through Android Geocoder
-- Burned-in address, date/time and coordinates stamp
-- OSMdroid map dependency and local tile-cache configuration foundation
+- Bottom-centre translucent frosted-glass geo-tag overlay on the live preview
+- OSMDroid mini-map centred on the current/last-known GPS fix
+- Captured photo receives a matching glass-style stamp with a rendered map snapshot, address, date/time, coordinates and reported GPS accuracy
+- Fused Location Provider last-known location and Android Geocoder address lookup
+- OSMDroid local tile cache can display previously cached map tiles offline; uncached areas may appear blank
 - GitHub Actions debug APK build; signed release APK/AAB when secrets are configured
 
 ## Important MVP scope notes
-This is the first implementation scaffold, not a finished Play Store release. The current camera screen shows a GPS information card, and the stamped photo burns address, date/time and coordinates. The next implementation pass must add the actual mini-map snapshot into the burned-in stamp, gallery browsing/sharing, explicit location freshness/accuracy handling, and metadata writing (EXIF). OSMDroid's tile cache is configured, but a visible map panel and offline region prefetch UI are not yet wired into the camera screen.
+This is an in-progress MVP, not yet a finished Play Store release. Gallery browsing/sharing, continuous location updates, location freshness indicators, EXIF GPS metadata, map prefetch/download controls, and device testing remain to be completed. Address resolution depends on Android Geocoder availability and may not work offline. The map uses cached tiles when available; no offline map region is bundled.
 
 ## Build
 The workflow uses JDK 17 and Gradle 8.11.1:
