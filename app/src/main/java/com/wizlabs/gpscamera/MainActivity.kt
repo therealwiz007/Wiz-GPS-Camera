@@ -219,17 +219,21 @@ private fun WizGpsCamera() {
                                     mapViewRef = this
                                     setTileSource(TileSourceFactory.MAPNIK)
                                     setMultiTouchControls(false)
-                                    controller.setZoom(if (gps.lat != null) 15.0 else 3.0)
-                                    if (gps.lat != null && gps.lon != null) {
-                                        val point = GeoPoint(gps.lat, gps.lon)
+                                    val currentLat = gps.lat
+                                    val currentLon = gps.lon
+                                    controller.setZoom(if (currentLat != null) 15.0 else 3.0)
+                                    if (currentLat != null && currentLon != null) {
+                                        val point = GeoPoint(currentLat, currentLon)
                                         controller.setCenter(point)
                                         overlays.add(Marker(this).apply { position = point; setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM); title = gps.address })
                                     }
                                 }
                             },
                             update = { map ->
-                                if (gps.lat != null && gps.lon != null) {
-                                    val point = GeoPoint(gps.lat, gps.lon)
+                                val currentLat = gps.lat
+                                val currentLon = gps.lon
+                                if (currentLat != null && currentLon != null) {
+                                    val point = GeoPoint(currentLat, currentLon)
                                     map.controller.setCenter(point)
                                     map.overlays.removeAll { it is Marker }
                                     map.overlays.add(Marker(map).apply { position = point; setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM) })
