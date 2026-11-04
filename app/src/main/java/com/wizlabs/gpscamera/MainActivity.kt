@@ -18,6 +18,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionFilter
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -132,7 +134,20 @@ private fun WizGpsCamera() {
                             providerFuture.addListener({
                                 val provider = providerFuture.get()
                                 val preview = Preview.Builder().build().also { it.setSurfaceProvider(surfaceProvider) }
+                                // Cap still-photo capture at 12 megapixels. Keep the largest
+                                // camera-supported output at or below 12 MP (rather than
+                                // requesting an exact 4:3 size that some devices may not offer).
+                                val photoResolutionSelector = ResolutionSelector.Builder()
+                                    .setResolutionFilter { supportedSizes, _ ->
+                                        val atOrBelow12Mp = supportedSizes.filter {
+                                            it.width.toLong() * it.height.toLong() <= 12_000_000L
+                                        }
+                                        (if (atOrBelow12Mp.isNotEmpty()) atOrBelow12Mp else supportedSizes)
+                                            .sortedByDescending { it.width.toLong() * it.height.toLong() }
+                                    }
+                                    .build()
                                 val imageCapture = ImageCapture.Builder()
+                                    .setResolutionSelector(photoResolutionSelector)
                                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                                     .setFlashMode(if (flash) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF)
                                     .build()
