@@ -194,7 +194,15 @@ private fun WizGpsCamera() {
                 Spacer(Modifier.height(5.dp))
                 Text(SimpleDateFormat("dd MMM yyyy · hh:mm:ss a", Locale.getDefault()).format(Date()), color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.labelMedium)
                 Text(gps.coordinateText, color = Color.White.copy(alpha = .78f), style = MaterialTheme.typography.labelSmall)
-                Text(gps.accuracy?.let { "GPS accuracy ±${it.toInt()} m · ${gps.fixTimeMillis?.let { t -> ((System.currentTimeMillis()-t).coerceAtLeast(0)/1000).toString()+" s old" } ?: "age unknown"}" } ?: "Waiting for GPS signal", color = if (gps.fixTimeMillis != null && System.currentTimeMillis()-gps.fixTimeMillis < 15000) Color(0xFF66DD99) else Color(0xFFFFC36B), style = MaterialTheme.typography.labelSmall)
+                val fixTimeMillis = gps.fixTimeMillis
+                val fixAgeMillis = fixTimeMillis?.let { (System.currentTimeMillis() - it).coerceAtLeast(0L) }
+                Text(
+                    gps.accuracy?.let { accuracy ->
+                        "GPS accuracy ±${accuracy.toInt()} m · ${fixAgeMillis?.div(1000)?.toString() ?: "age unknown"} s old"
+                    } ?: "Waiting for GPS signal",
+                    color = if (fixAgeMillis != null && fixAgeMillis < 15000L) Color(0xFF66DD99) else Color(0xFFFFC36B),
+                    style = MaterialTheme.typography.labelSmall
+                )
                 if (gps.isMock) Text("⚠ MOCK LOCATION DETECTED", color = Color(0xFFFF7777), style = MaterialTheme.typography.labelSmall)
             }
 
