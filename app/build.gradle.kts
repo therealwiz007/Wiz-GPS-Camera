@@ -12,13 +12,15 @@ android {
         applicationId = "com.wizlabs.gpscamera"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             val ks = System.getenv("KEYSTORE_FILE")
             if (!ks.isNullOrBlank()) {
                 signingConfig = signingConfigs.create("release") {
