@@ -18,6 +18,10 @@ android {
 
     buildTypes {
         release {
+            // Generate native debug symbols so Play Console can symbolicate native crashes/ANRs.
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

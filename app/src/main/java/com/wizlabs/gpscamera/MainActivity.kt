@@ -9,9 +9,6 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.location.Geocoder
 import android.net.Uri
-import android.content.Intent
-import android.database.Cursor
-import android.widget.ImageView
 import android.os.Bundle
 import android.os.Build
 import android.location.Location
@@ -34,19 +31,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.SwitchCamera
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -112,10 +102,6 @@ private fun WizGpsCamera() {
     var lens by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
     var flash by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("Preparing camera…") }
-    var showGallery by remember { mutableStateOf(false) }
-    var galleryItems by remember { mutableStateOf(listOf<GalleryPhoto>()) }
-    var lastSavedPhotoUri by remember { mutableStateOf<Uri?>(null) }
-    var mapViewRef by remember { mutableStateOf<MapView?>(null) }
 
     val permissions = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -142,18 +128,7 @@ private fun WizGpsCamera() {
         surface = Color(0xFF111A20), onSurface = Color.White
     )) {
         Box(Modifier.fillMaxSize().background(Color(0xFF090E12))) {
-            if (showGallery) {
-                GalleryScreen(
-                    photos = galleryItems,
-                    onBack = { showGallery = false },
-                    onRefresh = { galleryItems = loadGallery(context) },
-                    onShare = { sharePhoto(context, it.uri) },
-                    onDelete = { photo ->
-                        try { context.contentResolver.delete(photo.uri, null, null) } catch (_: Exception) {}
-                        galleryItems = loadGallery(context)
-                    }
-                )
-            } else if (hasCamera) {
+            if (hasCamera) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
@@ -204,89 +179,47 @@ private fun WizGpsCamera() {
                 }
             }
 
-            // GPS Map Camera-style lower watermark: map thumbnail on the left and geo details on the right.
-            if (!showGallery) {
-                Row(
-                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 14.dp).padding(bottom = 112.dp)
-                        .background(Color(0xD910171D), RoundedCornerShape(12.dp)).padding(9.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.width(94.dp).height(112.dp).background(Color(0xFF25313A), RoundedCornerShape(8.dp))) {
-                        AndroidView(
-                            modifier = Modifier.fillMaxSize(),
-                            factory = { ctx ->
-                                MapView(ctx).apply {
-                                    mapViewRef = this
-                                    setTileSource(TileSourceFactory.MAPNIK)
-                                    setMultiTouchControls(false)
-                                    val currentLat = gps.lat
-                                    val currentLon = gps.lon
-                                    controller.setZoom(if (currentLat != null) 15.0 else 3.0)
-                                    if (currentLat != null && currentLon != null) {
-                                        val point = GeoPoint(currentLat, currentLon)
-                                        controller.setCenter(point)
-                                        overlays.add(Marker(this).apply { position = point; setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM); title = gps.address })
-                                    }
-                                }
-                            },
-                            update = { map ->
-                                val currentLat = gps.lat
-                                val currentLon = gps.lon
-                                if (currentLat != null && currentLon != null) {
-                                    val point = GeoPoint(currentLat, currentLon)
-                                    map.controller.setCenter(point)
-                                    map.overlays.removeAll { it is Marker }
-                                    map.overlays.add(Marker(map).apply { position = point; setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM) })
-                                    map.invalidate()
-                                }
-                            }
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Wiz GPS Camera", color = Color.White.copy(alpha = .7f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                        Text(gps.address, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 2)
-                        Text(gps.coordinateText, color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.bodySmall)
-                        Text(SimpleDateFormat("EEE, dd/MM/yyyy hh:mm a z", Locale.getDefault()).format(Date()), color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.bodySmall)
-                        val fixTime = gps.fixTimeMillis
-                        val age = fixTime?.let { ((System.currentTimeMillis() - it).coerceAtLeast(0L) / 1000L) }
-                        Text(gps.accuracy?.let { "● Fix ±${it.toInt()} m · ${age ?: "?"} s old" } ?: "● Waiting for GPS", color = if (age != null && age < 15) Color(0xFF66DD99) else Color(0xFFFFC36B), style = MaterialTheme.typography.labelSmall)
-                        if (gps.isMock) Text("⚠ MOCK LOCATION", color = Color(0xFFFF7777), style = MaterialTheme.typography.labelSmall)
-                    }
+            // Compact map/address card. OSMDroid uses its local tile cache when offline.
+            Column(
+                Modifier.align(Alignment.TopStart).padding(16.dp)
+                    .fillMaxWidth(0.82f)
+                    .background(Color(0xD910171D), RoundedCornerShape(18.dp))
+                    .padding(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFFB7DCE5))
+                    Spacer(Modifier.width(6.dp))
+                    Text(gps.address, color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
+                Spacer(Modifier.height(5.dp))
+                Text(SimpleDateFormat("dd MMM yyyy · hh:mm:ss a", Locale.getDefault()).format(Date()), color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.labelMedium)
+                Text(gps.coordinateText, color = Color.White.copy(alpha = .78f), style = MaterialTheme.typography.labelSmall)
+                val fixTimeMillis = gps.fixTimeMillis
+                val fixAgeMillis = fixTimeMillis?.let { (System.currentTimeMillis() - it).coerceAtLeast(0L) }
+                Text(
+                    gps.accuracy?.let { accuracy ->
+                        "GPS accuracy ±${accuracy.toInt()} m · ${fixAgeMillis?.div(1000)?.toString() ?: "age unknown"} s old"
+                    } ?: "Waiting for GPS signal",
+                    color = if (fixAgeMillis != null && fixAgeMillis < 15000L) Color(0xFF66DD99) else Color(0xFFFFC36B),
+                    style = MaterialTheme.typography.labelSmall
+                )
+                if (gps.isMock) Text("⚠ MOCK LOCATION DETECTED", color = Color(0xFFFF7777), style = MaterialTheme.typography.labelSmall)
             }
 
-            if (!showGallery) Row(
+            Row(
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                     .background(Color(0xCC090E12)).padding(horizontal = 24.dp, vertical = 22.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(onClick = { galleryItems = loadGallery(context); showGallery = true }) {
-                        Icon(Icons.Default.PhotoLibrary, contentDescription = "Gallery", tint = Color.White)
-                    }
-                    Text("Gallery", color = Color.White.copy(alpha = .7f), style = MaterialTheme.typography.labelSmall)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(enabled = lastSavedPhotoUri != null, onClick = { lastSavedPhotoUri?.let { sharePhoto(context, it) } }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share latest photo to WhatsApp or other apps", tint = if (lastSavedPhotoUri != null) Color(0xFFB7DCE5) else Color.Gray)
-                    }
-                    Text("Share", color = if (lastSavedPhotoUri != null) Color.White.copy(alpha = .7f) else Color.Gray, style = MaterialTheme.typography.labelSmall)
+                IconButton(onClick = { status = "Gallery access will be enabled in the next build." }) {
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = "Gallery", tint = Color.White)
                 }
                 IconButton(onClick = { flash = !flash }) {
                     Icon(if (flash) Icons.Default.FlashOn else Icons.Default.FlashOff, contentDescription = "Flash", tint = Color.White)
                 }
                 Button(
-                    onClick = {
-                        val mapSnapshot = try {
-                            mapViewRef?.let { map ->
-                                if (map.width > 0 && map.height > 0) Bitmap.createBitmap(map.width, map.height, Bitmap.Config.ARGB_8888).also { bmp -> map.draw(Canvas(bmp)) }
-                                else null
-                            }
-                        } catch (_: Exception) { null }
-                        takePhoto(context, capture, gps, mapSnapshot, report = { status = it }, onPhotoSaved = { uri -> lastSavedPhotoUri = uri; galleryItems = loadGallery(context) })
-                    },
+                    onClick = { takePhoto(context, capture, gps) { status = it } },
                     modifier = Modifier.size(76.dp),
                     shape = CircleShape,
                     contentPadding = PaddingValues(0.dp),
@@ -300,91 +233,7 @@ private fun WizGpsCamera() {
                 }
             }
 
-            if (!showGallery) Text(status, Modifier.align(Alignment.BottomCenter).padding(bottom = 108.dp), color = Color.White.copy(alpha = .8f), style = MaterialTheme.typography.labelSmall)
-        }
-    }
-}
-
-
-private data class GalleryPhoto(val uri: Uri, val name: String)
-
-private fun loadGallery(context: android.content.Context): List<GalleryPhoto> {
-    val items = mutableListOf<GalleryPhoto>()
-    val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-    val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME)
-    val sort = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-    try {
-        context.contentResolver.query(collection, projection, null, null, sort)?.use { cursor ->
-            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-            while (cursor.moveToNext()) {
-                val name = cursor.getString(nameCol) ?: ""
-                if (name.startsWith("WizGPS_")) {
-                    val id = cursor.getLong(idCol)
-                    items.add(GalleryPhoto(Uri.withAppendedPath(collection, id.toString()), name))
-                }
-            }
-        }
-    } catch (_: Exception) {}
-    return items
-}
-
-private fun sharePhoto(context: android.content.Context, uri: Uri) {
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "image/jpeg"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        clipData = android.content.ClipData.newUri(context.contentResolver, "Wiz GPS Camera photo", uri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    try { context.startActivity(Intent.createChooser(intent, "Share original photo")) } catch (_: Exception) {}
-}
-
-@Composable
-private fun GalleryScreen(
-    photos: List<GalleryPhoto>,
-    onBack: () -> Unit,
-    onRefresh: () -> Unit,
-    onShare: (GalleryPhoto) -> Unit,
-    onDelete: (GalleryPhoto) -> Unit
-) {
-    Column(Modifier.fillMaxSize().background(Color(0xFF090E12)).padding(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White) }
-            Column(Modifier.weight(1f)) {
-                Text("Wiz GPS Camera", color = Color.White, fontWeight = FontWeight.Bold)
-                Text("Gallery · ${photos.size} photos", color = Color.LightGray, style = MaterialTheme.typography.labelSmall)
-            }
-            TextButton(onClick = onRefresh) { Text("Refresh") }
-        }
-        if (photos.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No photos yet\nCapture a photo to see it here.", color = Color.LightGray, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            }
-        } else {
-            LazyVerticalGrid(columns = GridCells.Fixed(2), contentPadding = PaddingValues(4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(photos, key = { it.uri.toString() }) { photo ->
-                    Column(Modifier.background(Color(0xFF152029), RoundedCornerShape(10.dp)).padding(6.dp)) {
-                        AndroidView(
-                            modifier = Modifier.fillMaxWidth().height(190.dp).clickable { onShare(photo) },
-                            factory = { ctx -> ImageView(ctx).apply { scaleType = ImageView.ScaleType.CENTER_CROP } },
-                            update = { image -> image.setImageURI(photo.uri) }
-                        )
-                        Text(photo.name, color = Color.White, maxLines = 1, style = MaterialTheme.typography.labelSmall)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            TextButton(onClick = { onShare(photo) }) {
-                                Icon(Icons.Default.Share, contentDescription = null, tint = Color(0xFFB7DCE5))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Share", color = Color(0xFFB7DCE5))
-                            }
-                            TextButton(onClick = { onDelete(photo) }) {
-                                Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF7777))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Delete", color = Color(0xFFFF7777))
-                            }
-                        }
-                    }
-                }
-            }
+            Text(status, Modifier.align(Alignment.BottomCenter).padding(bottom = 108.dp), color = Color.White.copy(alpha = .8f), style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -450,7 +299,7 @@ private fun resolveLocation(context: android.content.Context, location: Location
 private fun cachedAddress(context: android.content.Context, fallback: String): String =
     context.getSharedPreferences("gps_address_cache", android.content.Context.MODE_PRIVATE).getString("last_address", fallback) ?: fallback
 
-private fun takePhoto(context: android.content.Context, imageCapture: ImageCapture?, gps: GpsInfo, mapSnapshot: Bitmap?, report: (String) -> Unit, onPhotoSaved: (Uri) -> Unit = {}) {
+private fun takePhoto(context: android.content.Context, imageCapture: ImageCapture?, gps: GpsInfo, report: (String) -> Unit) {
     if (imageCapture == null) { report("Camera is not ready"); return }
     val temp = File(context.cacheDir, "wiz_${System.currentTimeMillis()}.jpg")
     val options = ImageCapture.OutputFileOptions.Builder(temp).build()
@@ -460,7 +309,7 @@ private fun takePhoto(context: android.content.Context, imageCapture: ImageCaptu
             Executors.newSingleThreadExecutor().execute {
             try {
                 val bitmap = decodeExifOrientedBitmap(temp)
-                val stamped = stampPhoto(bitmap, gps, mapSnapshot)
+                val stamped = stampPhoto(bitmap, gps)
                 val values = ContentValues().apply {
                     put(MediaStore.Images.Media.DISPLAY_NAME, "WizGPS_${System.currentTimeMillis()}.jpg")
                     put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
@@ -480,7 +329,7 @@ private fun takePhoto(context: android.content.Context, imageCapture: ImageCaptu
                             exif.saveAttributes()
                         }
                     } catch (_: Exception) {}
-                    ContextCompat.getMainExecutor(context).execute { onPhotoSaved(uri); report("Photo saved · ready to share") }
+                    ContextCompat.getMainExecutor(context).execute { report("Photo saved to Pictures/Wiz GPS Camera") }
                 } else ContextCompat.getMainExecutor(context).execute { report("Unable to save photograph") }
                 temp.delete()
             } catch (e: Exception) { ContextCompat.getMainExecutor(context).execute { report("Photo processing failed: ${e.localizedMessage}") } }
@@ -505,48 +354,24 @@ private fun decodeExifOrientedBitmap(file: File): Bitmap {
     return if (matrix.isIdentity()) bitmap else Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
 }
 
-private fun stampPhoto(source: Bitmap, gps: GpsInfo, mapSnapshot: Bitmap?): Bitmap {
+private fun stampPhoto(source: Bitmap, gps: GpsInfo): Bitmap {
     val result = source.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(result)
     val scale = result.width / 1080f
-    val pad = 28f * scale
-    val boxWidth = result.width * .90f
-    val boxHeight = 205f * scale
-    val left = (result.width - boxWidth) / 2f
+    val pad = 24f * scale
+    val boxWidth = result.width * .82f
+    val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE; textSize = 26f * scale; typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL) }
+    val smallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFE6EDF1.toInt(); textSize = 21f * scale }
+    val boxHeight = 150f * scale
+    val left = pad
     val top = result.height - boxHeight - pad
     val rect = RectF(left, top, left + boxWidth, top + boxHeight)
     val bg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xD910171D.toInt() }
-    canvas.drawRoundRect(rect, 20f * scale, 20f * scale, bg)
-
-    val mapW = 210f * scale
-    val mapRect = RectF(left + 10f * scale, top + 10f * scale, left + mapW, top + boxHeight - 10f * scale)
-    if (mapSnapshot != null && !mapSnapshot.isRecycled) {
-        val mapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-        canvas.drawBitmap(mapSnapshot, null, mapRect, mapPaint)
-    } else {
-        val fallback = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF263844.toInt() }
-        canvas.drawRoundRect(mapRect, 10f * scale, 10f * scale, fallback)
-        val pinPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFF5252.toInt(); textSize = 42f * scale; textAlign = Paint.Align.CENTER }
-        canvas.drawText("●", mapRect.centerX(), mapRect.centerY(), pinPaint)
-    }
-
-    val textLeft = left + mapW + 24f * scale
-    val maxTextWidth = rect.right - textLeft - 18f * scale
-    val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE; textSize = 31f * scale; typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL) }
-    val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFE6EDF1.toInt(); textSize = 23f * scale }
-    val smallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFE6EDF1.toInt(); textSize = 20f * scale }
-    fun drawFit(text: String, y: Float, paint: Paint) {
-        var shown = text
-        while (shown.isNotEmpty() && paint.measureText(shown) > maxTextWidth) shown = shown.dropLast(1)
-        if (shown != text && shown.length > 3) shown = shown.dropLast(3) + "..."
-        canvas.drawText(shown, textLeft, y, paint)
-    }
-    val address = (gps.address + if (gps.isMock) " · MOCK LOCATION" else "").take(110)
-    drawFit(address, top + 43f * scale, titlePaint)
-    drawFit(gps.coordinateText, top + 78f * scale, bodyPaint)
-    drawFit(SimpleDateFormat("EEEE, dd/MM/yyyy hh:mm a z", Locale.getDefault()).format(Date()), top + 112f * scale, bodyPaint)
-    val fixAge = gps.fixTimeMillis?.let { ((System.currentTimeMillis() - it).coerceAtLeast(0L) / 1000L) }
-    drawFit("GPS fix ${fixAge?.let { "$it s old" } ?: "age unknown"} · ${gps.accuracy?.let { "±${it.toInt()} m" } ?: "accuracy unknown"}", top + 146f * scale, smallPaint)
-    drawFit("Note: Captured by Wiz GPS Camera", top + 178f * scale, smallPaint)
+    canvas.drawRoundRect(rect, 22f * scale, 22f * scale, bg)
+    val address = (gps.address + if (gps.isMock) " · MOCK LOCATION" else "").take(72)
+    canvas.drawText(address, left + 20f * scale, top + 38f * scale, linePaint)
+    canvas.drawText(SimpleDateFormat("dd MMM yyyy · hh:mm a", Locale.getDefault()).format(Date()), left + 20f * scale, top + 76f * scale, smallPaint)
+    canvas.drawText(gps.coordinateText, left + 20f * scale, top + 112f * scale, smallPaint)
+    gps.fixTimeMillis?.let { canvas.drawText("Fix age: ${((System.currentTimeMillis()-it).coerceAtLeast(0)/1000)} s", left + 20f * scale, top + 138f * scale, smallPaint) }
     return result
 }
