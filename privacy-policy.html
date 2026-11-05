@@ -31,7 +31,7 @@
     <div class="brand">WIZ LABS</div>
     <h1>Privacy Policy</h1>
     <p><strong>Wiz GPS Camera</strong></p>
-    <p class="meta">Effective date: 1 November 2026 · Version 1.0</p>
+    <p class="meta">Effective date: 5 November 2026 · Version 1.1.1</p>
     <p>This policy explains how Wiz GPS Camera accesses and uses information when you use the app.</p>
   </header>
   <article>
@@ -40,7 +40,9 @@
       <li><strong>Camera:</strong> Used to show the camera preview and take photographs.</li>
       <li><strong>Location:</strong> When you grant location permission, the app uses the device's location to show latitude, longitude, location accuracy and, where available, a readable address on the photo stamp.</li>
       <li><strong>Photographs:</strong> Images captured in the app are processed to add the selected location and date/time stamp.</li>
-      <li><strong>Network access:</strong> Internet access may be used to retrieve map tiles or resolve an address. Map and geocoding services may receive technical request information, such as your IP address and the requested map area or coordinates, depending on the service used.</li>
+      <li><strong>Network access:</strong> Internet access is used to retrieve map tiles, resolve an address, check the current time and, only if you turn the Weather field on, fetch the weather. Those services may receive technical request information, such as your IP address and the requested map area or coordinates (see section 5).</li>
+      <li><strong>Sensors:</strong> The compass and motion sensors are used on the device to show heading and the level indicator. Sensor data is not stored or sent anywhere except as heading text you choose to print on a photo.</li>
+      <li><strong>Notes, logo and watermark:</strong> Text and an optional logo image you add are stored privately on your device and printed on photographs. They are not uploaded.</li>
     </ul>
 
     <h2>2. How information is used</h2>
@@ -48,13 +50,19 @@
 
     <h2>3. Storage and sharing</h2>
     <p>The app is designed to save captured photographs on your device. The app does not require an account. It does not provide a Wiz Labs cloud photo-storage service. If you choose to share a photograph, the receiving app or service will handle it under its own privacy policy.</p>
-    <p>Photographs may contain visible location details and, where implemented, location metadata. Be mindful of this before sharing images publicly.</p>
+    <p>Photographs contain visible location details and also embedded location metadata (EXIF): latitude, longitude, altitude, time, direction and a photo ID. Be mindful of this before sharing images publicly. The app keeps a private integrity record on your device (a fingerprint of each photo and its capture details) so it can show whether a photo was edited later; this record never leaves the device.</p>
 
     <h2>4. Location permissions and offline use</h2>
     <p>Location access is intended for use while you are using the camera. The app does not need background location access for its stated camera-stamping function. GPS coordinates can be obtained without an internet connection, but readable addresses and map imagery may be unavailable offline. Previously cached map imagery may be displayed when available.</p>
 
     <h2>5. Third-party services</h2>
-    <p>Map tiles are requested from OpenStreetMap tile infrastructure (which may receive your IP address and map-area requests). Readable address lookup uses Android Geocoder services; on devices configured with Google geocoding, Google may receive the coordinates and technical request data needed to resolve the address. These third-party services operate under their own terms and privacy policies. Address lookup may be unavailable offline.</p>
+    <p>The app uses these third-party services, each under its own terms and privacy policy:</p>
+    <ul>
+      <li><strong>OpenStreetMap tile servers</strong> (tile.openstreetmap.org): map images for the stamp. The requested map area, and your IP address, are visible to the tile server.</li>
+      <li><strong>Google Play services Location</strong> and the <strong>Android Geocoder</strong> (which may use Google's geocoding service): to obtain your location and turn coordinates into an address.</li>
+      <li><strong>Open-Meteo</strong> (api.open-meteo.com): only if the Weather field is enabled; your approximate coordinates are sent to get the temperature.</li>
+      <li><strong>Google</strong> (www.google.com): a small request to read the server's clock, used to verify the time printed on photos. No personal data is sent.</li>
+    </ul>
 
     <h2>6. Data security and retention</h2>
     <p>Photos saved by the app remain in device storage unless you choose to share or move them. You can manage or delete those photos using the app or your device's gallery/file-management tools. No online account is needed to use the app.</p>
@@ -75,7 +83,7 @@
     <h2>10. Contact</h2>
     <p>For privacy questions or requests, contact the app developer:</p>
     <p><strong>Wiz Labs</strong><br>Email: <a href="mailto:blazewizofficial@gmail.com">blazewizofficial@gmail.com</a></p>
-    <p class="notice"><strong>Release note:</strong> Before publishing, replace the contact email with an address you control and update the third-party services section to name the final map and geocoding providers. This policy must match the app's actual SDKs, network behaviour and data practices.</p>
+    <p class="notice">This policy describes the app's current intended data practices. If app features or third-party providers change, this policy will be updated accordingly.</p>
   </article>
   <footer>© 2026 Wiz Labs · Wiz GPS Camera</footer>
 </main>

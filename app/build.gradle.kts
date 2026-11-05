@@ -10,21 +10,20 @@ android {
 
     defaultConfig {
         applicationId = "com.wizlabs.gpscamera"
-        minSdk = 26
+        minSdk = 29
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.1.1"
     }
 
     buildTypes {
         release {
-            // Generate native debug symbols so Play Console can symbolicate native crashes/ANRs.
+            // Keep R8/minification disabled until the app is validated with appropriate rules.
+            isMinifyEnabled = false
             ndk {
+                // Ask AGP to package native debug symbols when native libraries are present.
                 debugSymbolLevel = "FULL"
             }
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             val ks = System.getenv("KEYSTORE_FILE")
             if (!ks.isNullOrBlank()) {
                 signingConfig = signingConfigs.create("release") {
