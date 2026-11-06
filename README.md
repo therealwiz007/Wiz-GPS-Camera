@@ -4,11 +4,20 @@ Wiz Labs Android GPS camera starter project.
 
 ## Identity
 - Application ID: `com.wizlabs.gpscamera`
-- Version: 1.2.1 (versionCode 4)
+- Version: 1.3.0 (versionCode 5)
 - Minimum Android: 10 / API 29
 - Compile / target SDK: 36
 
-## Current implementation (1.2.0)
+## What's new in 1.3.0 — redesign
+- **Camera:** full-width rounded preview, floating glass controls (flash, timer 3 s/10 s, aspect, grid, level, settings), live GPS chip with a pulsing dot (accuracy and place name), zoom preset pills (0.5× / 1× / 2× / 5×, depending on the lens), last-photo thumbnail that pops after each shot, springy shutter with a progress ring, spinning camera-flip button and a big animated countdown
+- **Stamp sheet:** tap the layout pill on the camera to change layout, position and fields without leaving the viewfinder
+- **Note:** one tap to add, edit or clear the note printed on photos
+- **GPS start screen:** sonar animation, plain-language copy and a 3-step checklist (permission → GPS on → fix)
+- **Settings:** live stamp preview at the top, icons on every row, pill choices instead of plain chips
+- **Gallery:** photos grouped by Today / Yesterday / date, rounded tiles, clear selection marks, friendly empty state, viewer with date, "n of N", a readable verification chip and labelled actions
+- Light haptic tick on every toggle, smooth fades between screens, dark launch window (no white flash)
+
+## Features
 **Core**
 - The app stays closed until precise location is allowed, GPS is switched on and a fresh GPS fix has arrived (GPS gate screen)
 - Vibrates when a photo is taken (switch off in Settings)
@@ -56,7 +65,7 @@ For signed release output, configure:
 Never commit the JKS or passwords into the repository.
 
 ## Permissions
-Camera and location permissions are requested at runtime. Location is optional for taking a photo; without a fix the camera still captures and the stamp shows the location as unavailable.
+Camera and precise location are requested at runtime. The app opens only after precise location is allowed, GPS is on and a fresh fix has arrived (see the GPS start screen).
 
 
 ## Brand assets integrated

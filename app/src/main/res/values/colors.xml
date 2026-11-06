@@ -2,4 +2,5 @@
     <color name="wiz_navy">#0A1F3D</color>
     <color name="wiz_teal">#00E5FF</color>
     <color name="wiz_silver">#E6F0FF</color>
+    <color name="wiz_bg">#07131C</color>
 </resources>

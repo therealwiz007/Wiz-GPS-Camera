@@ -17,9 +17,28 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material3.Button
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -209,67 +228,115 @@ fun GalleryScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             // Top bar
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (selected.isEmpty()) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = WizText)
                     }
-                    Text(
-                        "Gallery (${items.size})",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(Modifier.weight(1f)) {
+                        Text("Gallery", color = WizText, style = MaterialTheme.typography.titleLarge)
+                        if (items.isNotEmpty()) {
+                            Text(
+                                if (items.size == 1) "1 photo" else "${items.size} photos",
+                                color = WizMuted,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
                 } else {
                     IconButton(onClick = { selected = emptySet() }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Clear selection", tint = Color.White)
+                        Icon(Icons.Filled.Close, contentDescription = "Clear selection", tint = WizText)
                     }
                     Text(
                         "${selected.size} selected",
-                        color = Color.White,
+                        color = WizText,
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = { share(items.filter { it.id in selected }) }) {
-                        Icon(Icons.Filled.Share, contentDescription = "Share", tint = Color.White)
+                        Icon(Icons.Filled.Share, contentDescription = "Share", tint = WizTeal)
                     }
                     IconButton(onClick = { confirmDelete = items.filter { it.id in selected } }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = Color.White)
+                        Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = WizBad)
                     }
                 }
             }
 
             if (loaded && items.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(
+                    Modifier.fillMaxSize().padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        Modifier.size(88.dp).clip(RoundedCornerShape(28.dp)).background(WizPanel),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, tint = WizTeal, modifier = Modifier.size(40.dp))
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    Text("No photos yet", color = WizText, style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(6.dp))
                     Text(
-                        "No photos yet.\nPhotos taken with this app appear here.",
-                        color = Color.White.copy(alpha = .7f)
+                        "Every photo you take is stamped with place and time, and shows up here.",
+                        color = WizMuted,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
                     )
+                    Spacer(Modifier.height(22.dp))
+                    Button(onClick = onBack, shape = RoundedCornerShape(14.dp)) {
+                        Icon(Icons.Filled.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Take a photo")
+                    }
                 }
             } else {
+                val groups = remember(items) { groupByDay(items) }
+                if (selected.isEmpty() && items.isNotEmpty()) {
+                    Text(
+                        "Tip: press and hold a photo to select several",
+                        color = WizMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 18.dp, bottom = 4.dp)
+                    )
+                }
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.fillMaxSize().navigationBarsPadding(),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    columns = GridCells.Adaptive(minSize = 108.dp),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(items, key = { it.id }) { item ->
-                        PhotoCell(
-                            item = item,
-                            isSelected = item.id in selected,
-                            onClick = {
-                                if (selected.isNotEmpty()) {
+                    groups.forEach { (label, dayItems) ->
+                        item(key = "h_$label", span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                label,
+                                color = WizText,
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 4.dp)
+                            )
+                        }
+                        items(dayItems, key = { it.id }) { item ->
+                            PhotoCell(
+                                item = item,
+                                isSelected = item.id in selected,
+                                onClick = {
+                                    if (selected.isNotEmpty()) {
+                                        selected = if (item.id in selected) selected - item.id else selected + item.id
+                                    } else {
+                                        viewer = items.indexOf(item)
+                                    }
+                                },
+                                onLongClick = {
                                     selected = if (item.id in selected) selected - item.id else selected + item.id
-                                } else {
-                                    viewer = items.indexOf(item)
                                 }
-                            },
-                            onLongClick = {
-                                selected = if (item.id in selected) selected - item.id else selected + item.id
-                            }
-                        )
+                            )
+                        }
+                    }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Spacer(Modifier.navigationBarsPadding())
                     }
                 }
             }
@@ -328,46 +395,100 @@ private fun PhotoCell(item: PhotoItem, isSelected: Boolean, onClick: () -> Unit,
         }
     }
     val verify = verifyState(item)
+    val inset by animateFloatAsState(if (isSelected) 0.88f else 1f, tween(160), label = "cellInset")
+    val shape = RoundedCornerShape(14.dp)
     Box(
         Modifier
             .aspectRatio(1f)
-            .background(Color(0xFF132630))
+            .clip(shape)
+            .background(if (isSelected) WizTeal.copy(alpha = .18f) else WizPanel)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
-        thumb?.let {
-            Image(
-                bitmap = it.asImageBitmap(),
-                contentDescription = item.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+        Box(Modifier.fillMaxSize().scale(inset).clip(shape)) {
+            thumb?.let {
+                Image(
+                    bitmap = it.asImageBitmap(),
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
-        VerifyBadge(verify, Modifier.align(Alignment.BottomEnd).padding(4.dp))
+        VerifyBadge(verify, Modifier.align(Alignment.BottomEnd).padding(6.dp))
         if (isSelected) {
-            Box(Modifier.fillMaxSize().background(WizTeal.copy(alpha = .35f)).border(3.dp, WizTeal))
-            Icon(
-                Icons.Filled.Verified,
-                contentDescription = "Selected",
-                tint = Color.White,
-                modifier = Modifier.align(Alignment.TopStart).padding(6.dp).size(20.dp)
-            )
+            Box(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(WizTeal),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Check, contentDescription = "Selected", tint = WizNavy, modifier = Modifier.size(15.dp))
+            }
         }
     }
 }
 
 @Composable
 private fun VerifyBadge(result: Integrity.Result?, modifier: Modifier = Modifier) {
-    when (result) {
-        Integrity.Result.VERIFIED -> Icon(
-            Icons.Filled.Verified, contentDescription = "Verified original",
-            tint = Color(0xFF66FF99), modifier = modifier.size(20.dp)
-        )
-        Integrity.Result.MODIFIED, Integrity.Result.LEDGER_TAMPERED -> Icon(
-            Icons.Filled.Warning, contentDescription = "Modified",
-            tint = Color(0xFFFF5252), modifier = modifier.size(20.dp)
-        )
-        else -> {}
+    val (icon, tint, label) = when (result) {
+        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, WizGood, "Verified original")
+        Integrity.Result.MODIFIED, Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, WizBad, "Modified")
+        else -> return
     }
+    Box(
+        modifier.size(22.dp).clip(CircleShape).background(Color(0xB3091923)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(15.dp))
+    }
+}
+
+/** Verification as a readable chip for the full-screen viewer. */
+@Composable
+private fun VerifyChip(result: Integrity.Result?, modifier: Modifier = Modifier) {
+    val (icon, tint, label) = when (result) {
+        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, WizGood, "Verified original")
+        Integrity.Result.MODIFIED -> Triple(Icons.Filled.Warning, WizBad, "Edited after capture")
+        Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, WizBad, "Record tampered")
+        else -> return
+    }
+    Row(
+        modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color(0xB3091923))
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+/** "Today", "Yesterday" or a full date, newest first, keeping the input order inside each day. */
+private fun groupByDay(items: List<PhotoItem>): List<Pair<String, List<PhotoItem>>> {
+    val cal = Calendar.getInstance()
+    fun dayKey(ms: Long): Int {
+        cal.timeInMillis = ms
+        return cal.get(Calendar.YEAR) * 1000 + cal.get(Calendar.DAY_OF_YEAR)
+    }
+    val today = dayKey(System.currentTimeMillis())
+    val yesterday = dayKey(System.currentTimeMillis() - 86_400_000L)
+    val fmt = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault())
+    val out = LinkedHashMap<String, MutableList<PhotoItem>>()
+    for (item in items) {
+        val k = dayKey(item.dateMs)
+        val label = when (k) {
+            today -> "Today"
+            yesterday -> "Yesterday"
+            else -> fmt.format(Date(item.dateMs))
+        }
+        out.getOrPut(label) { ArrayList() }.add(item)
+    }
+    return out.map { it.key to it.value }
 }
 
 @Composable
@@ -401,34 +522,61 @@ private fun Viewer(
         val current = items[pagerState.currentPage.coerceIn(0, items.size - 1)]
         val verify = verifyState(current)
         Row(
-            Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(4.dp),
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color(0xCC000000), Color.Transparent)))
+                .statusBarsPadding()
+                .padding(horizontal = 6.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onClose) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
             }
-            Spacer(Modifier.weight(1f))
-            VerifyBadge(verify, Modifier.padding(end = 12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(current.dateMs)),
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(current.dateMs)) +
+                        "  ·  ${pagerState.currentPage + 1} of ${items.size}",
+                    color = Color.White.copy(alpha = .7f),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            VerifyChip(verify, Modifier.padding(end = 8.dp))
         }
         Row(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(Color(0xB309141B))
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000))))
                 .navigationBarsPadding()
-                .padding(vertical = 8.dp),
+                .padding(top = 24.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            IconButton(onClick = { onShare(current) }) {
-                Icon(Icons.Filled.Share, contentDescription = "Share", tint = Color.White)
-            }
-            IconButton(onClick = { onInfo(current) }) {
-                Icon(Icons.Filled.Info, contentDescription = "Details", tint = Color.White)
-            }
-            IconButton(onClick = { onDelete(current) }) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = Color.White)
-            }
+            ViewerAction(Icons.Filled.Share, "Share") { onShare(current) }
+            ViewerAction(Icons.Filled.Info, "Details") { onInfo(current) }
+            ViewerAction(Icons.Filled.Delete, "Delete", tint = WizBad) { onDelete(current) }
         }
+    }
+}
+
+@Composable
+private fun ViewerAction(icon: ImageVector, label: String, tint: Color = Color.White, onClick: () -> Unit) {
+    val tick = rememberTick()
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { tick(); onClick() }
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium)
     }
 }
 
@@ -446,6 +594,7 @@ private fun InfoDialog(item: PhotoItem, onDismiss: () -> Unit) {
     }
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = WizPanel,
         title = { Text("Photo details") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
