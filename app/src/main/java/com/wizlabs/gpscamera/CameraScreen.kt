@@ -253,7 +253,8 @@ fun CameraScreen(
                 .build()
             val ic = ImageCapture.Builder()
                 .setResolutionSelector(selector)
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+                .setJpegQuality(100)
                 .build()
             provider.unbindAll()
             camera = provider.bindToLifecycle(
@@ -335,6 +336,7 @@ fun CameraScreen(
                         sensors.headingDeg, location.declination, newPhotoId()
                     )
                     val mapCopy = snapshotMap(mapView, null)
+                    if (s.vibrate) Haptics.shutter(context)
                     launch {
                         blink = true
                         delay(120)
@@ -378,8 +380,13 @@ fun CameraScreen(
             update = { map ->
                 val fix = location.fix
                 if (fix != null) {
-                    map.controller.setCenter(GeoPoint(fix.lat, fix.lon))
-                    map.invalidate()
+                    val point = GeoPoint(fix.lat, fix.lon)
+                    // Post so zoom and centre are applied after the view has been laid out.
+                    map.post {
+                        map.controller.setZoom(17.0)
+                        map.controller.setCenter(point)
+                        map.invalidate()
+                    }
                 }
             }
         )

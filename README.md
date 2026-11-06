@@ -4,12 +4,15 @@ Wiz Labs Android GPS camera starter project.
 
 ## Identity
 - Application ID: `com.wizlabs.gpscamera`
-- Version: 1.1.1 (versionCode 3)
+- Version: 1.2.1 (versionCode 4)
 - Minimum Android: 10 / API 29
 - Compile / target SDK: 36
 
-## Current implementation (1.1.1)
+## Current implementation (1.2.0)
 **Core**
+- The app stays closed until precise location is allowed, GPS is switched on and a fresh GPS fix has arrived (GPS gate screen)
+- Vibrates when a photo is taken (switch off in Settings)
+- Quality: maximize-quality capture mode, camera JPEG quality 100, saved at JPEG 98, photo size up to 16 MP
 - CameraX preview and capture (photo size 5 / 8 / 12 MP), correct rotation in portrait and landscape
 - Continuous high-accuracy GPS with a freshness dot ("±5 m · 3s ago") on the camera screen
 - GPS, altitude, direction, time zone offset and a photo ID written into the JPEG's EXIF
@@ -31,7 +34,7 @@ Wiz Labs Android GPS camera starter project.
 **Trust and proof**
 - Mock-location detection (flag on the photo, or block capture)
 - Network time check: time is anchored to a server clock and a warning is printed if the phone clock is off
-- Tamper evidence: SHA-256 of every saved photo is kept in a private ledger signed with an Android Keystore key; the gallery marks edited files. Verification is local and limited to the same app installation/device ledger; it is not third-party, legal, or universal authenticity certification. It may be unavailable after reinstall or on another device.
+- Tamper evidence: SHA-256 of every saved photo is kept in a private ledger signed with an Android Keystore key; the gallery marks edited files. Verifiable only inside this app on the same phone (not after reinstall).
 
 ## Notes
 - minSdk is now 29 (Android 10) so photos can be saved without a storage permission.
@@ -62,14 +65,7 @@ Camera and location permissions are requested at runtime. Location is optional f
 - Splash artwork, full logo and Play Store icon in `app/src/main/assets/`
 - HTML privacy policy at `privacy-policy.html`
 
-The splash artwork and Play Store artwork are included as assets; the splash artwork is not yet wired to the Android SplashScreen API. Privacy policy contact: blazewizofficial@gmail.com. Review policy against the exact final SDK/network behaviour before publishing.
+The splash artwork and Play Store artwork are included as assets; the splash artwork is not yet wired to the Android SplashScreen API. Review the privacy policy contact email and final map/geocoding providers before publishing.
 
 ## Production builds
 GitHub Actions workflow `.github/workflows/android.yml` builds a signed release APK and AAB using repository secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`.
-
-
-## Release 1.1.1 correction notes
-- Version metadata is set to versionName 1.1.1 / versionCode 3 for a new Play release.
-- Release build requests FULL native debug symbols from Android Gradle Plugin. The workflow uploads the native-debug-symbols ZIP when generated; some builds with no native libraries may not produce one (workflow reports this as a warning).
-- R8/minification remains disabled intentionally pending full device testing and verification of shrinker rules.
-- The repository does not include a Gradle wrapper JAR; GitHub Actions uses Gradle 8.11.1 through setup-gradle. A wrapper JAR could not be sourced in this environment, so no fake wrapper was added.

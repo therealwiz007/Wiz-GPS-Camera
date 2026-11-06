@@ -110,7 +110,7 @@ object StampRenderer {
         val withMap = s.template == StampTemplate.FULL && s.showMap
         val left = s.position == StampPosition.LEFT
         val f = if (compact) 0.85f else 1f
-        val pad = (if (compact) 14f else 24f) * scale
+        val pad = (if (compact) 14f else 20f) * scale
         val gap = 16f * scale
         val shadow = textOnly
 
@@ -190,7 +190,7 @@ object StampRenderer {
         // ---- Measure -------------------------------------------------------------------------
         val panelW = if (left) ref * 0.50f else min(w * 0.92f, ref * 0.92f)
         val innerW = panelW - 2 * pad
-        val mapSide = 240f * scale * (if (compact) 0.85f else 1f)
+        val mapSide = 170f * scale * (if (compact) 0.85f else 1f)
         val divGap = 22f * scale
         val divW = 2f * scale
         val horizontalMap = withMap && !left

@@ -12,18 +12,13 @@ android {
         applicationId = "com.wizlabs.gpscamera"
         minSdk = 29
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.1.1"
+        versionCode = 4
+        versionName = "1.2.1"
     }
 
     buildTypes {
         release {
-            // Keep R8/minification disabled until the app is validated with appropriate rules.
             isMinifyEnabled = false
-            ndk {
-                // Ask AGP to package native debug symbols when native libraries are present.
-                debugSymbolLevel = "FULL"
-            }
             val ks = System.getenv("KEYSTORE_FILE")
             if (!ks.isNullOrBlank()) {
                 signingConfig = signingConfigs.create("release") {
@@ -55,6 +50,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // Pulled in transitively at an old version (1.1.0) by other libraries; Play flags that as
+    // outdated. Declaring it here makes Gradle use this newer one everywhere.
+    implementation("androidx.fragment:fragment:1.8.6")
 
     val camerax = "1.4.2"
     implementation("androidx.camera:camera-core:$camerax")

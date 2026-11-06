@@ -101,7 +101,7 @@ object PhotoPipeline {
         val stamped = File(app.cacheDir, "wiz_out_${System.nanoTime()}.jpg")
         try {
             FileOutputStream(stamped).use { out ->
-                if (!bmp.compress(Bitmap.CompressFormat.JPEG, 95, out)) {
+                if (!bmp.compress(Bitmap.CompressFormat.JPEG, 98, out)) {
                     throw IllegalStateException("Image encoding failed")
                 }
             }

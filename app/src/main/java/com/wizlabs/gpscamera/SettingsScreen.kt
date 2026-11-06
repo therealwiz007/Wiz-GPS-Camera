@@ -192,7 +192,7 @@ fun SettingsScreen(repo: SettingsRepo, onBack: () -> Unit) {
                 }
                 Spacer(Modifier.height(6.dp))
                 Text("Photo size", color = Color.White)
-                ChipRow(listOf("5 MP" to 5, "8 MP" to 8, "12 MP" to 12), s.megapixels) { v ->
+                ChipRow(listOf("5 MP" to 5, "8 MP" to 8, "12 MP" to 12, "16 MP" to 16), s.megapixels) { v ->
                     repo.update { it.copy(megapixels = v) }
                 }
                 Spacer(Modifier.height(6.dp))
@@ -205,6 +205,7 @@ fun SettingsScreen(repo: SettingsRepo, onBack: () -> Unit) {
                 ChipRow(listOf("Single" to 1, "3 photos" to 3, "5 photos" to 5), s.burstCount) { v ->
                     repo.update { it.copy(burstCount = v) }
                 }
+                SwitchRow("Vibrate when a photo is taken", s.vibrate, { v -> repo.update { it.copy(vibrate = v) } })
                 SwitchRow("Grid lines", s.gridOn, { v -> repo.update { it.copy(gridOn = v) } })
                 SwitchRow("Level indicator", s.levelOn, { v -> repo.update { it.copy(levelOn = v) } })
             }
@@ -229,7 +230,7 @@ fun SettingsScreen(repo: SettingsRepo, onBack: () -> Unit) {
 
             Spacer(Modifier.height(24.dp))
             Text(
-                "Wiz GPS Camera 1.1.0 · Wiz Labs",
+                "Wiz GPS Camera 1.2.1 · Wiz Labs",
                 color = Color.White.copy(alpha = .45f),
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.align(Alignment.CenterHorizontally)

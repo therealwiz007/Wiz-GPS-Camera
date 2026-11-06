@@ -80,16 +80,19 @@ private fun WizApp() {
             onSurface = Color.White
         )
     ) {
-        when (screen) {
-            Screen.CAMERA -> CameraScreen(
-                repo = repo,
-                location = location,
-                sensors = sensors,
-                onGallery = { screen = Screen.GALLERY },
-                onSettings = { screen = Screen.SETTINGS }
-            )
-            Screen.GALLERY -> GalleryScreen(onBack = { screen = Screen.CAMERA })
-            Screen.SETTINGS -> SettingsScreen(repo = repo, onBack = { screen = Screen.CAMERA })
+        // The app stays closed until precise location is allowed, GPS is on and a fresh fix exists.
+        GpsGate(location) {
+            when (screen) {
+                Screen.CAMERA -> CameraScreen(
+                    repo = repo,
+                    location = location,
+                    sensors = sensors,
+                    onGallery = { screen = Screen.GALLERY },
+                    onSettings = { screen = Screen.SETTINGS }
+                )
+                Screen.GALLERY -> GalleryScreen(onBack = { screen = Screen.CAMERA })
+                Screen.SETTINGS -> SettingsScreen(repo = repo, onBack = { screen = Screen.CAMERA })
+            }
         }
     }
 }

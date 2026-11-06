@@ -75,6 +75,7 @@ data class AppSettings(
     val burstCount: Int = 1,
     val megapixels: Int = 12,
     val aspect: AspectChoice = AspectChoice.R4_3,
+    val vibrate: Boolean = true,
     val mockPolicy: MockPolicy = MockPolicy.FLAG
 )
 
@@ -128,6 +129,7 @@ class SettingsRepo(context: Context) {
             burstCount = i("burstCount", d.burstCount),
             megapixels = i("megapixels", d.megapixels),
             aspect = enumOf(prefs.getString("aspect", null), d.aspect),
+            vibrate = b("vibrate", d.vibrate),
             mockPolicy = enumOf(prefs.getString("mockPolicy", null), d.mockPolicy)
         )
     }
@@ -163,6 +165,7 @@ class SettingsRepo(context: Context) {
             .putInt("burstCount", n.burstCount)
             .putInt("megapixels", n.megapixels)
             .putString("aspect", n.aspect.name)
+            .putBoolean("vibrate", n.vibrate)
             .putString("mockPolicy", n.mockPolicy.name)
             .apply()
     }
