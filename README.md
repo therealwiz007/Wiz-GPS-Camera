@@ -4,14 +4,14 @@ Wiz Labs Android GPS camera starter project.
 
 ## Identity
 - Application ID: `com.wizlabs.gpscamera`
-- Version: 2.0.0 (versionCode 5)
+- Version: 2.0.0 (versionCode 6)
 - Minimum Android: 10 / API 29
 - Compile / target SDK: 36
 
 ## New in 2.0
 
 **Projects and field work**
-- Projects: pick or create a project from the folder chip on the camera screen. New photos are filed under it, saved in `Pictures/Wiz GPS Camera/<Project>` and the project name is printed on the stamp
+- Projects: pick or create one from the Project pill on the camera. New photos are filed under it, saved in `Pictures/Wiz GPS Camera/<Project>` and the project name is printed on the stamp
 - Quick tags (Before, After, Damage…) in the note dialog; manage them in Settings
 - Gallery: filter by project, search notes/addresses/IDs, select all, move photos to another project
 - Map view of all photos with a location; tap a pin to open the photo
@@ -19,25 +19,34 @@ Wiz Labs Android GPS camera starter project.
 - Photo details show the address, project and an "Open in Maps" button
 
 **Stamp**
-- Styles: Glass, Classic, Light, Bold (accent bar), Minimal
+- Styles: Glass, Classic, Light, Bold (accent bar), Minimal — also in the camera's stamp sheet
 - Accent colour, card opacity (30–100 %) and text size (80–140 %)
 - Coordinate formats: decimal, degrees/minutes/seconds, UTM, MGRS
 - Metric or imperial units; 21 time zones
 
 **Camera**
 - Flash Off / Auto / On / Torch
-- 0.5x / 1x / 2x / 5x zoom buttons (only those the phone supports)
-- Exposure compensation slider
+- Exposure compensation slider (EV button in the top bar)
 - Volume keys take a photo; optional shutter sound
 - Live compass heading on the preview
 - Option to save front-camera photos unmirrored
 
 **Polish**
 - Branded splash screen (SplashScreen API) and a first-run walkthrough
+- Tapping anywhere on a settings row toggles it
 - Release builds are minified and resource-shrunk (about 8 MB APK)
 - Unit tests for the coordinate maths (`gradle testDebugUnitTest`)
 
-## Implementation before 2.0 (1.2.0)
+## What's new in 1.3.0 — redesign
+- **Camera:** full-width rounded preview, floating glass controls (flash, timer 3 s/10 s, aspect, grid, level, settings), live GPS chip with a pulsing dot (accuracy and place name), zoom preset pills (0.5× / 1× / 2× / 5×, depending on the lens), last-photo thumbnail that pops after each shot, springy shutter with a progress ring, spinning camera-flip button and a big animated countdown
+- **Stamp sheet:** tap the layout pill on the camera to change layout, position and fields without leaving the viewfinder
+- **Note:** one tap to add, edit or clear the note printed on photos
+- **GPS start screen:** sonar animation, plain-language copy and a 3-step checklist (permission → GPS on → fix)
+- **Settings:** live stamp preview at the top, icons on every row, pill choices instead of plain chips
+- **Gallery:** photos grouped by Today / Yesterday / date, rounded tiles, clear selection marks, friendly empty state, viewer with date, "n of N", a readable verification chip and labelled actions
+- Light haptic tick on every toggle, smooth fades between screens, dark launch window (no white flash)
+
+## Features
 **Core**
 - The app stays closed until precise location is allowed, GPS is switched on and a fresh GPS fix has arrived (GPS gate screen)
 - Vibrates when a photo is taken (switch off in Settings)
@@ -86,7 +95,7 @@ For signed release output, configure:
 Never commit the JKS or passwords into the repository.
 
 ## Permissions
-Camera and location permissions are requested at runtime. Location is optional for taking a photo; without a fix the camera still captures and the stamp shows the location as unavailable.
+Camera and precise location are requested at runtime. The app opens only after precise location is allowed, GPS is on and a fresh fix has arrived (see the GPS start screen).
 
 
 ## Brand assets integrated

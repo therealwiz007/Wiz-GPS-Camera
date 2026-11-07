@@ -17,9 +17,28 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material3.Button
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,30 +70,31 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.launch
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.CustomZoomButtonsController
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.viewinterop.AndroidView
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.BoundingBox
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -154,7 +174,7 @@ fun loadPhotos(context: Context): List<PhotoItem> {
     return out
 }
 
-/** Gallery filter: all photos, photos in no project, or one project's photos. */
+/** Gallery filter: all photos, photos in no project (""), or one project's id. */
 private const val FILTER_ALL = "*"
 
 @Composable
@@ -186,7 +206,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
         if (v != null && v >= loadedItems.size) viewer = if (loadedItems.isEmpty()) null else loadedItems.size - 1
     }
 
-    // Apply the project filter and the search text (matches file name, note, address and ID).
+    // Project filter and search text (matches file name, note, address and photo ID).
     val metas = remember(allItems, metaVersion) { allItems.associate { it.id to Export.metaFor(context, it) } }
     val items = remember(allItems, metas, filter, query) {
         val q = query.trim().lowercase()
@@ -289,62 +309,66 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             // Top bar
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (selected.isEmpty()) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = WizText)
                     }
-                    Text(
-                        "Gallery (${items.size})",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(Modifier.weight(1f)) {
+                        Text("Gallery", color = WizText, style = MaterialTheme.typography.titleLarge)
+                        if (items.isNotEmpty()) {
+                            Text(
+                                if (items.size == 1) "1 photo" else "${items.size} photos",
+                                color = WizMuted,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
                     IconButton(onClick = { searching = !searching; if (!searching) query = "" }) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search", tint = if (searching) WizTeal else Color.White)
+                        Icon(Icons.Filled.Search, contentDescription = "Search", tint = if (searching) WizTeal else WizText)
                     }
                     IconButton(onClick = { mapMode = !mapMode }) {
                         Icon(
                             if (mapMode) Icons.Filled.GridView else Icons.Filled.Map,
                             contentDescription = if (mapMode) "Grid view" else "Map view",
-                            tint = Color.White
+                            tint = WizText
                         )
                     }
                     Box {
                         IconButton(onClick = { exportMenu = true }) {
-                            Icon(Icons.Filled.Download, contentDescription = "Export", tint = Color.White)
+                            Icon(Icons.Filled.Download, contentDescription = "Export", tint = WizText)
                         }
                         ExportMenu(exportMenu, { exportMenu = false }) { kind -> runExport(kind, items) }
                     }
                 } else {
                     IconButton(onClick = { selected = emptySet() }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Clear selection", tint = Color.White)
+                        Icon(Icons.Filled.Close, contentDescription = "Clear selection", tint = WizText)
                     }
                     Text(
                         "${selected.size} selected",
-                        color = Color.White,
+                        color = WizText,
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = { selected = items.map { it.id }.toSet() }) {
-                        Icon(Icons.Filled.SelectAll, contentDescription = "Select all", tint = Color.White)
+                        Icon(Icons.Filled.SelectAll, contentDescription = "Select all", tint = WizText)
                     }
                     IconButton(onClick = { moveFor = items.filter { it.id in selected } }) {
-                        Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move to project", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move to project", tint = WizText)
                     }
                     Box {
                         IconButton(onClick = { exportMenu = true }) {
-                            Icon(Icons.Filled.Download, contentDescription = "Export", tint = Color.White)
+                            Icon(Icons.Filled.Download, contentDescription = "Export", tint = WizText)
                         }
                         ExportMenu(exportMenu, { exportMenu = false }) { kind -> runExport(kind, items.filter { it.id in selected }) }
                     }
                     IconButton(onClick = { share(items.filter { it.id in selected }) }) {
-                        Icon(Icons.Filled.Share, contentDescription = "Share", tint = Color.White)
+                        Icon(Icons.Filled.Share, contentDescription = "Share", tint = WizTeal)
                     }
                     IconButton(onClick = { confirmDelete = items.filter { it.id in selected } }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = Color.White)
+                        Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = WizBad)
                     }
                 }
             }
@@ -355,7 +379,14 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                     onValueChange = { query = it },
                     singleLine = true,
                     placeholder = { Text("Search notes, addresses, IDs") },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = WizMuted) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = WizTeal,
+                        unfocusedBorderColor = WizLine,
+                        cursorColor = WizTeal
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp)
                 )
             }
             if (projects.projects.isNotEmpty()) {
@@ -363,58 +394,94 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                     Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val chips = listOf(FILTER_ALL to "All", "" to "No project") +
                         projects.projects.sortedByDescending { it.createdMs }.map { it.id to it.name }
-                    chips.forEach { (id, label) ->
-                        FilterChip(
-                            selected = filter == id,
-                            onClick = { filter = id },
-                            label = { Text(label, maxLines = 1) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = WizTeal.copy(alpha = .9f),
-                                selectedLabelColor = WizNavy,
-                                labelColor = Color.White
-                            )
-                        )
-                    }
+                    chips.forEach { (id, label) -> PillChip(label, filter == id) { filter = id } }
                 }
             }
 
-            if (loaded && items.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (loaded && items.isNotEmpty() && mapMode) {
+                PhotoMap(items, metas) { item -> viewer = items.indexOf(item) }
+            } else if (loaded && allItems.isNotEmpty() && items.isEmpty()) {
+                Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                    Text("No photos match.", color = WizMuted, style = MaterialTheme.typography.bodyLarge)
+                }
+            } else if (loaded && items.isEmpty()) {
+                Column(
+                    Modifier.fillMaxSize().padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        Modifier.size(88.dp).clip(RoundedCornerShape(28.dp)).background(WizPanel),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, tint = WizTeal, modifier = Modifier.size(40.dp))
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    Text("No photos yet", color = WizText, style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(6.dp))
                     Text(
-                        if (allItems.isEmpty()) "No photos yet.\nPhotos taken with this app appear here."
-                        else "No photos match.",
-                        color = Color.White.copy(alpha = .7f)
+                        "Every photo you take is stamped with place and time, and shows up here.",
+                        color = WizMuted,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(22.dp))
+                    Button(onClick = onBack, shape = RoundedCornerShape(14.dp)) {
+                        Icon(Icons.Filled.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Take a photo")
+                    }
+                }
+            } else {
+                val groups = remember(items) { groupByDay(items) }
+                if (selected.isEmpty() && items.isNotEmpty()) {
+                    Text(
+                        "Tip: press and hold a photo to select several",
+                        color = WizMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 18.dp, bottom = 4.dp)
                     )
                 }
-            } else if (mapMode) {
-                PhotoMap(items, metas) { item -> viewer = items.indexOf(item) }
-            } else {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.fillMaxSize().navigationBarsPadding(),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    columns = GridCells.Adaptive(minSize = 108.dp),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(items, key = { it.id }) { item ->
-                        PhotoCell(
-                            item = item,
-                            isSelected = item.id in selected,
-                            onClick = {
-                                if (selected.isNotEmpty()) {
+                    groups.forEach { (label, dayItems) ->
+                        item(key = "h_$label", span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                label,
+                                color = WizText,
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 4.dp)
+                            )
+                        }
+                        items(dayItems, key = { it.id }) { item ->
+                            PhotoCell(
+                                item = item,
+                                isSelected = item.id in selected,
+                                onClick = {
+                                    if (selected.isNotEmpty()) {
+                                        selected = if (item.id in selected) selected - item.id else selected + item.id
+                                    } else {
+                                        viewer = items.indexOf(item)
+                                    }
+                                },
+                                onLongClick = {
                                     selected = if (item.id in selected) selected - item.id else selected + item.id
-                                } else {
-                                    viewer = items.indexOf(item)
                                 }
-                            },
-                            onLongClick = {
-                                selected = if (item.id in selected) selected - item.id else selected + item.id
-                            }
-                        )
+                            )
+                        }
+                    }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Spacer(Modifier.navigationBarsPadding())
                     }
                 }
             }
@@ -471,11 +538,12 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
     exporting?.let { msg ->
         AlertDialog(
             onDismissRequest = {},
+            containerColor = WizPanel,
             confirmButton = {},
             text = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(color = WizTeal, modifier = Modifier.size(28.dp))
-                    Spacer(Modifier.size(16.dp))
+                    Spacer(Modifier.width(16.dp))
                     Text(msg)
                 }
             }
@@ -498,7 +566,7 @@ private fun movePhotos(context: Context, list: List<PhotoItem>, project: Project
 
 @Composable
 private fun ExportMenu(expanded: Boolean, onDismiss: () -> Unit, onPick: (Export.Kind) -> Unit) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss, containerColor = WizPanelHi) {
         Export.Kind.values().forEach { kind ->
             DropdownMenuItem(text = { Text(kind.label) }, onClick = {
                 onDismiss()
@@ -516,19 +584,24 @@ private fun PhotoMap(items: List<PhotoItem>, metas: Map<Long, PhotoMeta?>, onOpe
         if (m?.lat != null && m.lon != null) Triple(item, m, GeoPoint(m.lat, m.lon)) else null
     }
     if (located.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("None of these photos has a location.", color = Color.White.copy(alpha = .7f))
+        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+            Text("None of these photos has a location.", color = WizMuted, style = MaterialTheme.typography.bodyLarge)
         }
         return
     }
-    val openRef = androidx.compose.runtime.rememberUpdatedState(onOpen)
+    val openRef = rememberUpdatedState(onOpen)
     AndroidView(
-        modifier = Modifier.fillMaxSize().navigationBarsPadding(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(start = 12.dp, end = 12.dp, top = 6.dp)
+            .navigationBarsPadding()
+            .padding(bottom = 12.dp)
+            .clip(RoundedCornerShape(20.dp)),
         factory = { ctx ->
             MapView(ctx).apply {
                 setTileSource(TileSourceFactory.MAPNIK)
                 setMultiTouchControls(true)
-                zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
+                zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
             }
         },
         update = { map ->
@@ -537,7 +610,7 @@ private fun PhotoMap(items: List<PhotoItem>, metas: Map<Long, PhotoMeta?>, onOpe
                 map.overlays.add(Marker(map).apply {
                     position = point
                     title = m.note.ifBlank { item.name }
-                    snippet = m.address?.replace('\n', ' ')
+                    snippet = m.address?.replace("\n", " ")
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     setOnMarkerClickListener { _, _ ->
                         openRef.value(item)
@@ -583,46 +656,100 @@ private fun PhotoCell(item: PhotoItem, isSelected: Boolean, onClick: () -> Unit,
         }
     }
     val verify = verifyState(item)
+    val inset by animateFloatAsState(if (isSelected) 0.88f else 1f, tween(160), label = "cellInset")
+    val shape = RoundedCornerShape(14.dp)
     Box(
         Modifier
             .aspectRatio(1f)
-            .background(Color(0xFF132630))
+            .clip(shape)
+            .background(if (isSelected) WizTeal.copy(alpha = .18f) else WizPanel)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
-        thumb?.let {
-            Image(
-                bitmap = it.asImageBitmap(),
-                contentDescription = item.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+        Box(Modifier.fillMaxSize().scale(inset).clip(shape)) {
+            thumb?.let {
+                Image(
+                    bitmap = it.asImageBitmap(),
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
-        VerifyBadge(verify, Modifier.align(Alignment.BottomEnd).padding(4.dp))
+        VerifyBadge(verify, Modifier.align(Alignment.BottomEnd).padding(6.dp))
         if (isSelected) {
-            Box(Modifier.fillMaxSize().background(WizTeal.copy(alpha = .35f)).border(3.dp, WizTeal))
-            Icon(
-                Icons.Filled.Verified,
-                contentDescription = "Selected",
-                tint = Color.White,
-                modifier = Modifier.align(Alignment.TopStart).padding(6.dp).size(20.dp)
-            )
+            Box(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(WizTeal),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Check, contentDescription = "Selected", tint = WizNavy, modifier = Modifier.size(15.dp))
+            }
         }
     }
 }
 
 @Composable
 private fun VerifyBadge(result: Integrity.Result?, modifier: Modifier = Modifier) {
-    when (result) {
-        Integrity.Result.VERIFIED -> Icon(
-            Icons.Filled.Verified, contentDescription = "Verified original",
-            tint = Color(0xFF66FF99), modifier = modifier.size(20.dp)
-        )
-        Integrity.Result.MODIFIED, Integrity.Result.LEDGER_TAMPERED -> Icon(
-            Icons.Filled.Warning, contentDescription = "Modified",
-            tint = Color(0xFFFF5252), modifier = modifier.size(20.dp)
-        )
-        else -> {}
+    val (icon, tint, label) = when (result) {
+        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, WizGood, "Verified original")
+        Integrity.Result.MODIFIED, Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, WizBad, "Modified")
+        else -> return
     }
+    Box(
+        modifier.size(22.dp).clip(CircleShape).background(Color(0xB3091923)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(15.dp))
+    }
+}
+
+/** Verification as a readable chip for the full-screen viewer. */
+@Composable
+private fun VerifyChip(result: Integrity.Result?, modifier: Modifier = Modifier) {
+    val (icon, tint, label) = when (result) {
+        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, WizGood, "Verified original")
+        Integrity.Result.MODIFIED -> Triple(Icons.Filled.Warning, WizBad, "Edited after capture")
+        Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, WizBad, "Record tampered")
+        else -> return
+    }
+    Row(
+        modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color(0xB3091923))
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+/** "Today", "Yesterday" or a full date, newest first, keeping the input order inside each day. */
+private fun groupByDay(items: List<PhotoItem>): List<Pair<String, List<PhotoItem>>> {
+    val cal = Calendar.getInstance()
+    fun dayKey(ms: Long): Int {
+        cal.timeInMillis = ms
+        return cal.get(Calendar.YEAR) * 1000 + cal.get(Calendar.DAY_OF_YEAR)
+    }
+    val today = dayKey(System.currentTimeMillis())
+    val yesterday = dayKey(System.currentTimeMillis() - 86_400_000L)
+    val fmt = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault())
+    val out = LinkedHashMap<String, MutableList<PhotoItem>>()
+    for (item in items) {
+        val k = dayKey(item.dateMs)
+        val label = when (k) {
+            today -> "Today"
+            yesterday -> "Yesterday"
+            else -> fmt.format(Date(item.dateMs))
+        }
+        out.getOrPut(label) { ArrayList() }.add(item)
+    }
+    return out.map { it.key to it.value }
 }
 
 @Composable
@@ -656,34 +783,61 @@ private fun Viewer(
         val current = items[pagerState.currentPage.coerceIn(0, items.size - 1)]
         val verify = verifyState(current)
         Row(
-            Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(4.dp),
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color(0xCC000000), Color.Transparent)))
+                .statusBarsPadding()
+                .padding(horizontal = 6.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onClose) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
             }
-            Spacer(Modifier.weight(1f))
-            VerifyBadge(verify, Modifier.padding(end = 12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(current.dateMs)),
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(current.dateMs)) +
+                        "  ·  ${pagerState.currentPage + 1} of ${items.size}",
+                    color = Color.White.copy(alpha = .7f),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            VerifyChip(verify, Modifier.padding(end = 8.dp))
         }
         Row(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(Color(0xB309141B))
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000))))
                 .navigationBarsPadding()
-                .padding(vertical = 8.dp),
+                .padding(top = 24.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            IconButton(onClick = { onShare(current) }) {
-                Icon(Icons.Filled.Share, contentDescription = "Share", tint = Color.White)
-            }
-            IconButton(onClick = { onInfo(current) }) {
-                Icon(Icons.Filled.Info, contentDescription = "Details", tint = Color.White)
-            }
-            IconButton(onClick = { onDelete(current) }) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = Color.White)
-            }
+            ViewerAction(Icons.Filled.Share, "Share") { onShare(current) }
+            ViewerAction(Icons.Filled.Info, "Details") { onInfo(current) }
+            ViewerAction(Icons.Filled.Delete, "Delete", tint = WizBad) { onDelete(current) }
         }
+    }
+}
+
+@Composable
+private fun ViewerAction(icon: ImageVector, label: String, tint: Color = Color.White, onClick: () -> Unit) {
+    val tick = rememberTick()
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { tick(); onClick() }
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium)
     }
 }
 
@@ -702,6 +856,7 @@ private fun InfoDialog(item: PhotoItem, s: AppSettings, projects: ProjectStore, 
     }
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = WizPanel,
         title = { Text("Photo details") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -716,7 +871,7 @@ private fun InfoDialog(item: PhotoItem, s: AppSettings, projects: ProjectStore, 
                         Text(Geo.format(meta.lat, meta.lon, s.coordFormat))
                         meta.accuracyM?.let { Text("Accuracy ±${Geo.distance(it.toDouble(), s.units)}") }
                     }
-                    if (meta.mock) Text("Mock location was detected", color = Color(0xFFFFB74D))
+                    if (meta.mock) Text("Mock location was detected", color = WizWarn)
                     if (meta.note.isNotBlank()) Text("Note: ${meta.note}")
                 } else if (record != null) {
                     Text("ID ${record.id}")

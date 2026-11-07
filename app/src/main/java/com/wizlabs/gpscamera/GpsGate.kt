@@ -9,10 +9,18 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,12 +29,17 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,13 +50,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
@@ -152,88 +166,177 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
             }
     }
 
-    Column(
+    val step = when {
+        !hasPermission -> 0
+        !gpsOn -> 1
+        else -> 2
+    }
+    val requestPermission: () -> Unit = {
+        permLauncher.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        )
+    }
+
+    Box(
         Modifier
             .fillMaxSize()
-            .background(WizBar)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .background(Brush.verticalGradient(listOf(Color(0xFF0B2230), WizNavy, WizBar)))
     ) {
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = null,
-            modifier = Modifier.size(96.dp).clip(RoundedCornerShape(22.dp))
-        )
-        Spacer(Modifier.height(20.dp))
-        Text(
-            "GPS is required",
-            color = Color.White,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(10.dp))
+        Column(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 28.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.weight(1f))
+            RadarLogo(searching = step == 2)
+            Spacer(Modifier.height(28.dp))
+            Text(
+                when (step) {
+                    0 -> "Photos that prove\nwhere you were"
+                    1 -> "Switch on GPS"
+                    else -> "Locking on to satellites"
+                },
+                color = WizText,
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                when (step) {
+                    0 -> "Every photo is stamped with the exact place, map and time. Allow precise location to start."
+                    1 -> "Wiz GPS Camera needs GPS switched on to stamp your photos accurately."
+                    else -> fix?.accuracyM?.let { "Current accuracy ±${it.toInt()} m — almost there." }
+                        ?: "This usually takes a few seconds."
+                },
+                color = WizMuted,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+            if (step == 2 && waited >= 20) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Taking a while? Step near a window or outside for a clearer view of the sky.",
+                    color = WizWarn,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center
+                )
+            }
 
-        when {
-            !hasPermission -> {
-                Text(
-                    "Allow precise location so every photo can be stamped with exactly where it was taken.",
-                    color = Color(0xFFB7C2CC),
-                    textAlign = TextAlign.Center
-                )
-                Spacer(Modifier.height(24.dp))
-                Button(
-                    onClick = {
-                        permLauncher.launch(
-                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Allow location") }
-                Spacer(Modifier.height(10.dp))
-                OutlinedButton(onClick = { openAppSettings(context) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Open app settings")
-                }
+            Spacer(Modifier.weight(1f))
+
+            // Three-step progress so people know how close they are.
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(WizPanel.copy(alpha = .85f))
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                StepRow(1, "Precise location allowed", done = step > 0, current = step == 0)
+                StepRow(2, "GPS switched on", done = step > 1, current = step == 1)
+                StepRow(3, "Fresh GPS fix", done = false, current = step == 2)
             }
-            !gpsOn -> {
-                Text(
-                    "Turn on GPS (location) to open the camera.",
-                    color = Color(0xFFB7C2CC),
-                    textAlign = TextAlign.Center
-                )
-                Spacer(Modifier.height(24.dp))
-                Button(onClick = turnOnGps, modifier = Modifier.fillMaxWidth()) { Text("Turn on GPS") }
-                Spacer(Modifier.height(10.dp))
-                OutlinedButton(onClick = { openLocationSettings(context) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Open location settings")
+            Spacer(Modifier.height(18.dp))
+
+            when (step) {
+                0 -> {
+                    Button(
+                        onClick = requestPermission,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(54.dp)
+                    ) { Text("Allow location", style = MaterialTheme.typography.titleSmall) }
+                    TextButton(onClick = { openAppSettings(context) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Open app settings", color = WizMuted)
+                    }
                 }
-            }
-            else -> {
-                CircularProgressIndicator(color = WizTeal)
-                Spacer(Modifier.height(16.dp))
-                Text("Getting your GPS fix…", color = Color.White, textAlign = TextAlign.Center)
-                val acc = fix?.accuracyM
-                if (acc != null) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "Current accuracy ±${acc.toInt()} m",
-                        color = Color(0xFFB7C2CC),
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                1 -> {
+                    Button(
+                        onClick = turnOnGps,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(54.dp)
+                    ) { Text("Turn on GPS", style = MaterialTheme.typography.titleSmall) }
+                    TextButton(onClick = { openLocationSettings(context) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Open location settings", color = WizMuted)
+                    }
                 }
-                if (waited >= 20) {
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        "Taking a while? Move near a window or outside for a better signal.",
-                        color = Color(0xFFB7C2CC),
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Center
+                else -> {
+                    LinearProgressIndicator(
+                        color = WizTeal,
+                        trackColor = WizPanelHi,
+                        modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(50))
                     )
+                    Spacer(Modifier.height(48.dp))
                 }
             }
         }
+    }
+}
+
+/** App icon with expanding sonar rings while searching for a fix. */
+@Composable
+private fun RadarLogo(searching: Boolean) {
+    val t = rememberInfiniteTransition(label = "radar")
+    val phase by t.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart),
+        label = "radarPhase"
+    )
+    Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val maxR = size.minDimension / 2f
+            val ringCount = 3
+            for (i in 0 until ringCount) {
+                val p = (phase + i / ringCount.toFloat()) % 1f
+                val r = maxR * (0.32f + 0.68f * p)
+                val a = (1f - p) * if (searching) 0.55f else 0.22f
+                drawCircle(WizTeal.copy(alpha = a), radius = r, style = Stroke(width = 2.dp.toPx()))
+            }
+            drawCircle(WizTeal.copy(alpha = .08f), radius = maxR * 0.34f)
+        }
+        Image(
+            painter = painterResource(R.drawable.ic_launcher_foreground),
+            contentDescription = null,
+            modifier = Modifier.size(104.dp).clip(RoundedCornerShape(28.dp))
+        )
+    }
+}
+
+@Composable
+private fun StepRow(number: Int, label: String, done: Boolean, current: Boolean) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(
+                    when {
+                        done -> WizGood
+                        current -> WizTeal
+                        else -> WizPanelHi
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (done) {
+                Icon(Icons.Filled.Check, contentDescription = null, tint = WizNavy, modifier = Modifier.size(17.dp))
+            } else {
+                Text(
+                    number.toString(),
+                    color = if (current) WizNavy else WizMuted,
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Text(
+            label,
+            color = if (done || current) WizText else WizMuted,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (current) FontWeight.SemiBold else FontWeight.Normal
+        )
     }
 }

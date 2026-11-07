@@ -1,8 +1,13 @@
 <resources>
-    <!-- Shown by the SplashScreen API while the app starts, then replaced by the app theme. -->
+    <!-- Dark window background so there is no white flash before the first frame. -->
+    <style name="Theme.WizGpsCamera" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/wiz_bg</item>
+    </style>
+
+    <!-- Shown by the SplashScreen API while the app starts, then replaced by Theme.WizGpsCamera. -->
     <style name="Theme.Wiz.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/wiz_bar</item>
+        <item name="windowSplashScreenBackground">@color/wiz_bg</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
-        <item name="postSplashScreenTheme">@android:style/Theme.Material.NoActionBar</item>
+        <item name="postSplashScreenTheme">@style/Theme.WizGpsCamera</item>
     </style>
 </resources>

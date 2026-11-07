@@ -12,7 +12,7 @@ android {
         applicationId = "com.wizlabs.gpscamera"
         minSdk = 29
         targetSdk = 36
-        versionCode = 5
+        versionCode = 6
         versionName = "2.0.0"
     }
 

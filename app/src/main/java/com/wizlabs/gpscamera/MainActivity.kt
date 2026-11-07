@@ -7,15 +7,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
@@ -93,31 +92,31 @@ private fun WizApp() {
 
     BackHandler(enabled = screen != Screen.CAMERA) { screen = Screen.CAMERA }
 
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = WizTeal,
-            onPrimary = WizNavy,
-            background = WizNavy,
-            surface = WizPanel,
-            onSurface = Color.White
-        )
-    ) {
+    WizTheme {
         if (!repo.settings.onboardingDone) {
             Onboarding(onDone = { repo.update { it.copy(onboardingDone = true) } })
         } else {
             // The app stays closed until precise location is allowed, GPS is on and a fresh fix exists.
             GpsGate(location) {
-                when (screen) {
-                    Screen.CAMERA -> CameraScreen(
-                        repo = repo,
-                        projects = projects,
-                        location = location,
-                        sensors = sensors,
-                        onGallery = { screen = Screen.GALLERY },
-                        onSettings = { screen = Screen.SETTINGS }
-                    )
-                    Screen.GALLERY -> GalleryScreen(repo = repo, projects = projects, onBack = { screen = Screen.CAMERA })
-                    Screen.SETTINGS -> SettingsScreen(repo = repo, projects = projects, onBack = { screen = Screen.CAMERA })
+                Crossfade(targetState = screen, animationSpec = tween(220), label = "screen") { current ->
+                    when (current) {
+                        Screen.CAMERA -> CameraScreen(
+                            repo = repo,
+                            projects = projects,
+                            location = location,
+                            sensors = sensors,
+                            onGallery = { screen = Screen.GALLERY },
+                            onSettings = { screen = Screen.SETTINGS }
+                        )
+                        Screen.GALLERY -> GalleryScreen(repo = repo, projects = projects, onBack = { screen = Screen.CAMERA })
+                        Screen.SETTINGS -> SettingsScreen(
+                            repo = repo,
+                            projects = projects,
+                            location = location,
+                            sensors = sensors,
+                            onBack = { screen = Screen.CAMERA }
+                        )
+                    }
                 }
             }
         }
