@@ -42,12 +42,19 @@ object PhotoPipeline {
         settings: AppSettings,
         map: Bitmap?,
         logo: Bitmap?,
+        project: Project?,
+        /** null keeps CameraX's default (front camera photos are mirrored like the preview). */
+        reverseHorizontal: Boolean?,
         onDone: (Result<Saved>) -> Unit
     ) {
         val app = context.applicationContext
         val raw = File(app.cacheDir, "wiz_raw_${System.nanoTime()}.jpg")
+        val options = ImageCapture.OutputFileOptions.Builder(raw)
+        if (reverseHorizontal != null) {
+            options.setMetadata(ImageCapture.Metadata().apply { isReversedHorizontal = reverseHorizontal })
+        }
         imageCapture.takePicture(
-            ImageCapture.OutputFileOptions.Builder(raw).build(),
+            options.build(),
             executor,
             object : ImageCapture.OnImageSavedCallback {
                 override fun onError(exception: ImageCaptureException) {
@@ -56,7 +63,7 @@ object PhotoPipeline {
                 }
 
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    val result = runCatching { process(app, raw, data, settings, map, logo) }
+                    val result = runCatching { process(app, raw, data, settings, map, logo, project) }
                     raw.delete()
                     main.post { onDone(result) }
                 }
@@ -65,7 +72,7 @@ object PhotoPipeline {
     }
 
     private fun process(
-        app: Context, raw: File, d: StampData, s: AppSettings, map: Bitmap?, logo: Bitmap?
+        app: Context, raw: File, d: StampData, s: AppSettings, map: Bitmap?, logo: Bitmap?, project: Project?
     ): Saved {
         // 1) Decode and apply the rotation CameraX stored in EXIF (BitmapFactory ignores it).
         val exif = ExifInterface(raw.absolutePath)
@@ -114,7 +121,10 @@ object PhotoPipeline {
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, name)
                 put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Wiz GPS Camera")
+                put(
+                    MediaStore.Images.Media.RELATIVE_PATH,
+                    "Pictures/Wiz GPS Camera" + (project?.let { "/" + ProjectStore.folderName(it.name) } ?: "")
+                )
                 put(MediaStore.Images.Media.DATE_TAKEN, d.timeMs)
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             }
@@ -138,6 +148,7 @@ object PhotoPipeline {
                 app, d.photoId, name, Integrity.sha256(stamped),
                 d.lat, d.lon, d.timeMs, d.mock, d.note
             )
+            PhotoMetaStore.put(app, PhotoMetaStore.fromStamp(name, d, project?.id ?: ""))
             return Saved(uri, name)
         } finally {
             if (!bmp.isRecycled) bmp.recycle()

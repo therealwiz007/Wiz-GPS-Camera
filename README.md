@@ -4,11 +4,40 @@ Wiz Labs Android GPS camera starter project.
 
 ## Identity
 - Application ID: `com.wizlabs.gpscamera`
-- Version: 1.2.1 (versionCode 4)
+- Version: 2.0.0 (versionCode 5)
 - Minimum Android: 10 / API 29
 - Compile / target SDK: 36
 
-## Current implementation (1.2.0)
+## New in 2.0
+
+**Projects and field work**
+- Projects: pick or create a project from the folder chip on the camera screen. New photos are filed under it, saved in `Pictures/Wiz GPS Camera/<Project>` and the project name is printed on the stamp
+- Quick tags (Before, After, Damage…) in the note dialog; manage them in Settings
+- Gallery: filter by project, search notes/addresses/IDs, select all, move photos to another project
+- Map view of all photos with a location; tap a pin to open the photo
+- Export the shown or selected photos as a **PDF report** (photo, address, coordinates, GPS accuracy, time, ID and integrity verdict per photo), **CSV** or **KML** (Google Earth). Files go to `Download/Wiz GPS Camera` and the share sheet opens
+- Photo details show the address, project and an "Open in Maps" button
+
+**Stamp**
+- Styles: Glass, Classic, Light, Bold (accent bar), Minimal
+- Accent colour, card opacity (30–100 %) and text size (80–140 %)
+- Coordinate formats: decimal, degrees/minutes/seconds, UTM, MGRS
+- Metric or imperial units; 21 time zones
+
+**Camera**
+- Flash Off / Auto / On / Torch
+- 0.5x / 1x / 2x / 5x zoom buttons (only those the phone supports)
+- Exposure compensation slider
+- Volume keys take a photo; optional shutter sound
+- Live compass heading on the preview
+- Option to save front-camera photos unmirrored
+
+**Polish**
+- Branded splash screen (SplashScreen API) and a first-run walkthrough
+- Release builds are minified and resource-shrunk (about 8 MB APK)
+- Unit tests for the coordinate maths (`gradle testDebugUnitTest`)
+
+## Implementation before 2.0 (1.2.0)
 **Core**
 - The app stays closed until precise location is allowed, GPS is switched on and a fresh GPS fix has arrived (GPS gate screen)
 - Vibrates when a photo is taken (switch off in Settings)
@@ -39,7 +68,8 @@ Wiz Labs Android GPS camera starter project.
 ## Notes
 - minSdk is now 29 (Android 10) so photos can be saved without a storage permission.
 - The gallery lists photos this install created. After reinstalling, older photos remain in Pictures/Wiz GPS Camera but may not appear.
-- Not yet done: wiring the splash artwork to the SplashScreen API, ads, cloud backup, device testing on a range of phones.
+- Not yet done: translations (all text is English), ads, cloud backup, video with a live stamp, device testing on a range of phones.
+- Photo metadata for projects, the map and exports is kept in the app's private storage; like the integrity ledger it does not survive a reinstall.
 
 ## Build
 The workflow uses JDK 17 and Gradle 8.11.1:

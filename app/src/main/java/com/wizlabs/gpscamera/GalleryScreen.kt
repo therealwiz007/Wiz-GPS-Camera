@@ -41,19 +41,40 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -133,10 +154,22 @@ fun loadPhotos(context: Context): List<PhotoItem> {
     return out
 }
 
+/** Gallery filter: all photos, photos in no project, or one project's photos. */
+private const val FILTER_ALL = "*"
+
 @Composable
-fun GalleryScreen(onBack: () -> Unit) {
+fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit) {
     val context = LocalContext.current
-    var items by remember { mutableStateOf<List<PhotoItem>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+    var allItems by remember { mutableStateOf<List<PhotoItem>>(emptyList()) }
+    var filter by remember { mutableStateOf(FILTER_ALL) }
+    var query by remember { mutableStateOf("") }
+    var searching by remember { mutableStateOf(false) }
+    var mapMode by remember { mutableStateOf(false) }
+    var exportMenu by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf<String?>(null) }
+    var moveFor by remember { mutableStateOf<List<PhotoItem>?>(null) }
+    var metaVersion by remember { mutableIntStateOf(0) }
     var loaded by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
     var selected by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -146,11 +179,54 @@ fun GalleryScreen(onBack: () -> Unit) {
 
     LaunchedEffect(refresh) {
         val loadedItems = withContext(Dispatchers.IO) { loadPhotos(context) }
-        items = loadedItems
+        allItems = loadedItems
         loaded = true
         selected = selected.intersect(loadedItems.map { it.id }.toSet())
         val v = viewer
         if (v != null && v >= loadedItems.size) viewer = if (loadedItems.isEmpty()) null else loadedItems.size - 1
+    }
+
+    // Apply the project filter and the search text (matches file name, note, address and ID).
+    val metas = remember(allItems, metaVersion) { allItems.associate { it.id to Export.metaFor(context, it) } }
+    val items = remember(allItems, metas, filter, query) {
+        val q = query.trim().lowercase()
+        allItems.filter { item ->
+            val m = metas[item.id]
+            val inFilter = when (filter) {
+                FILTER_ALL -> true
+                "" -> m?.projectId.isNullOrEmpty()
+                else -> m?.projectId == filter
+            }
+            inFilter && (q.isEmpty() || listOfNotNull(item.name, m?.note, m?.address, m?.id).any { it.lowercase().contains(q) })
+        }
+    }
+
+    fun runExport(kind: Export.Kind, list: List<PhotoItem>) {
+        if (list.isEmpty()) {
+            Toast.makeText(context, "No photos to export", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val title = when (filter) {
+            FILTER_ALL -> "Wiz GPS Camera photos"
+            "" -> "Photos without a project"
+            else -> projects.byId(filter)?.name ?: "Project"
+        }
+        exporting = "Creating ${kind.label}…"
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val entries = list.map { Export.Entry(it, metas[it.id], Integrity.verify(context, it.uri, it.name)) }
+                    Export.write(context, kind, title, entries, repo.settings)
+                }
+            }
+            exporting = null
+            result.onSuccess {
+                Toast.makeText(context, "Saved to Downloads/Wiz GPS Camera", Toast.LENGTH_SHORT).show()
+                Export.share(context, it.first, kind, it.second)
+            }.onFailure {
+                Toast.makeText(context, "Export failed: ${it.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     val deleteLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
@@ -201,6 +277,10 @@ fun GalleryScreen(onBack: () -> Unit) {
         when {
             viewer != null -> viewer = null
             selected.isNotEmpty() -> selected = emptySet()
+            searching -> {
+                searching = false
+                query = ""
+            }
             else -> onBack()
         }
     }
@@ -222,6 +302,22 @@ fun GalleryScreen(onBack: () -> Unit) {
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f)
                     )
+                    IconButton(onClick = { searching = !searching; if (!searching) query = "" }) {
+                        Icon(Icons.Filled.Search, contentDescription = "Search", tint = if (searching) WizTeal else Color.White)
+                    }
+                    IconButton(onClick = { mapMode = !mapMode }) {
+                        Icon(
+                            if (mapMode) Icons.Filled.GridView else Icons.Filled.Map,
+                            contentDescription = if (mapMode) "Grid view" else "Map view",
+                            tint = Color.White
+                        )
+                    }
+                    Box {
+                        IconButton(onClick = { exportMenu = true }) {
+                            Icon(Icons.Filled.Download, contentDescription = "Export", tint = Color.White)
+                        }
+                        ExportMenu(exportMenu, { exportMenu = false }) { kind -> runExport(kind, items) }
+                    }
                 } else {
                     IconButton(onClick = { selected = emptySet() }) {
                         Icon(Icons.Filled.Close, contentDescription = "Clear selection", tint = Color.White)
@@ -232,6 +328,18 @@ fun GalleryScreen(onBack: () -> Unit) {
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f)
                     )
+                    IconButton(onClick = { selected = items.map { it.id }.toSet() }) {
+                        Icon(Icons.Filled.SelectAll, contentDescription = "Select all", tint = Color.White)
+                    }
+                    IconButton(onClick = { moveFor = items.filter { it.id in selected } }) {
+                        Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move to project", tint = Color.White)
+                    }
+                    Box {
+                        IconButton(onClick = { exportMenu = true }) {
+                            Icon(Icons.Filled.Download, contentDescription = "Export", tint = Color.White)
+                        }
+                        ExportMenu(exportMenu, { exportMenu = false }) { kind -> runExport(kind, items.filter { it.id in selected }) }
+                    }
                     IconButton(onClick = { share(items.filter { it.id in selected }) }) {
                         Icon(Icons.Filled.Share, contentDescription = "Share", tint = Color.White)
                     }
@@ -241,13 +349,50 @@ fun GalleryScreen(onBack: () -> Unit) {
                 }
             }
 
+            if (searching) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    placeholder = { Text("Search notes, addresses, IDs") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
+                )
+            }
+            if (projects.projects.isNotEmpty()) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val chips = listOf(FILTER_ALL to "All", "" to "No project") +
+                        projects.projects.sortedByDescending { it.createdMs }.map { it.id to it.name }
+                    chips.forEach { (id, label) ->
+                        FilterChip(
+                            selected = filter == id,
+                            onClick = { filter = id },
+                            label = { Text(label, maxLines = 1) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = WizTeal.copy(alpha = .9f),
+                                selectedLabelColor = WizNavy,
+                                labelColor = Color.White
+                            )
+                        )
+                    }
+                }
+            }
+
             if (loaded && items.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        "No photos yet.\nPhotos taken with this app appear here.",
+                        if (allItems.isEmpty()) "No photos yet.\nPhotos taken with this app appear here."
+                        else "No photos match.",
                         color = Color.White.copy(alpha = .7f)
                     )
                 }
+            } else if (mapMode) {
+                PhotoMap(items, metas) { item -> viewer = items.indexOf(item) }
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -303,7 +448,117 @@ fun GalleryScreen(onBack: () -> Unit) {
         )
     }
 
-    infoFor?.let { item -> InfoDialog(item) { infoFor = null } }
+    infoFor?.let { item -> InfoDialog(item, repo.settings, projects) { infoFor = null } }
+
+    moveFor?.let { list ->
+        ProjectPickerDialog(
+            projects = projects,
+            selectedId = "\u0000",
+            title = "Move ${list.size} photo${if (list.size == 1) "" else "s"} to",
+            onSelect = { id ->
+                moveFor = null
+                scope.launch {
+                    withContext(Dispatchers.IO) { movePhotos(context, list, projects.byId(id)) }
+                    selected = emptySet()
+                    metaVersion++
+                    refresh++
+                }
+            },
+            onDismiss = { moveFor = null }
+        )
+    }
+
+    exporting?.let { msg ->
+        AlertDialog(
+            onDismissRequest = {},
+            confirmButton = {},
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(color = WizTeal, modifier = Modifier.size(28.dp))
+                    Spacer(Modifier.size(16.dp))
+                    Text(msg)
+                }
+            }
+        )
+    }
+}
+
+/** Re-files photos and, where Android allows it, moves the files into the project's folder. */
+private fun movePhotos(context: Context, list: List<PhotoItem>, project: Project?) {
+    PhotoMetaStore.move(context, list.map { it.name }, project?.id ?: "")
+    val path = "Pictures/Wiz GPS Camera" + (project?.let { "/" + ProjectStore.folderName(it.name) } ?: "")
+    list.forEach { item ->
+        // Only works for files this install created; others simply stay where they are.
+        runCatching {
+            val v = android.content.ContentValues().apply { put(MediaStore.Images.Media.RELATIVE_PATH, path) }
+            context.contentResolver.update(item.uri, v, null, null)
+        }
+    }
+}
+
+@Composable
+private fun ExportMenu(expanded: Boolean, onDismiss: () -> Unit, onPick: (Export.Kind) -> Unit) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        Export.Kind.values().forEach { kind ->
+            DropdownMenuItem(text = { Text(kind.label) }, onClick = {
+                onDismiss()
+                onPick(kind)
+            })
+        }
+    }
+}
+
+/** All photos with a location as pins on a map; tapping a pin opens that photo. */
+@Composable
+private fun PhotoMap(items: List<PhotoItem>, metas: Map<Long, PhotoMeta?>, onOpen: (PhotoItem) -> Unit) {
+    val located = items.mapNotNull { item ->
+        val m = metas[item.id]
+        if (m?.lat != null && m.lon != null) Triple(item, m, GeoPoint(m.lat, m.lon)) else null
+    }
+    if (located.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("None of these photos has a location.", color = Color.White.copy(alpha = .7f))
+        }
+        return
+    }
+    val openRef = androidx.compose.runtime.rememberUpdatedState(onOpen)
+    AndroidView(
+        modifier = Modifier.fillMaxSize().navigationBarsPadding(),
+        factory = { ctx ->
+            MapView(ctx).apply {
+                setTileSource(TileSourceFactory.MAPNIK)
+                setMultiTouchControls(true)
+                zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
+            }
+        },
+        update = { map ->
+            map.overlays.clear()
+            located.forEach { (item, m, point) ->
+                map.overlays.add(Marker(map).apply {
+                    position = point
+                    title = m.note.ifBlank { item.name }
+                    snippet = m.address?.replace('\n', ' ')
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    setOnMarkerClickListener { _, _ ->
+                        openRef.value(item)
+                        true
+                    }
+                })
+            }
+            map.post {
+                if (located.size == 1) {
+                    map.controller.setZoom(17.0)
+                    map.controller.setCenter(located[0].third)
+                } else {
+                    val box = BoundingBox.fromGeoPointsSafe(located.map { it.third })
+                    map.zoomToBoundingBox(box.increaseByScale(1.3f), false, 64)
+                    if (map.zoomLevelDouble > 18.0) map.controller.setZoom(18.0)
+                }
+            }
+            map.invalidate()
+        },
+        onRelease = { it.onDetach() }
+    )
 }
 
 @Composable
@@ -433,10 +688,11 @@ private fun Viewer(
 }
 
 @Composable
-private fun InfoDialog(item: PhotoItem, onDismiss: () -> Unit) {
+private fun InfoDialog(item: PhotoItem, s: AppSettings, projects: ProjectStore, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val verify = verifyState(item)
     val record = remember(item.id) { Integrity.find(context, item.name) }
+    val meta = remember(item.id) { Export.metaFor(context, item) }
     val verdict = when (verify) {
         null -> "Checking…"
         Integrity.Result.VERIFIED -> "Verified: this is the unmodified file saved by this app on this device."
@@ -452,18 +708,33 @@ private fun InfoDialog(item: PhotoItem, onDismiss: () -> Unit) {
                 Text(item.name, fontWeight = FontWeight.SemiBold)
                 Text("${item.width} × ${item.height} · ${Formatter.formatShortFileSize(context, item.sizeBytes)}")
                 Text(DateFormat.getDateTimeInstance().format(Date(item.dateMs)))
-                if (record != null) {
-                    Text("ID ${record.id}")
-                    if (record.lat != null && record.lon != null) {
-                        Text(String.format(java.util.Locale.US, "%.6f, %.6f", record.lat, record.lon))
+                if (meta != null) {
+                    if (meta.id.isNotBlank()) Text("ID ${meta.id}")
+                    projects.byId(meta.projectId)?.let { Text("Project: ${it.name}") }
+                    meta.address?.let { Text(it.replace("\n", ", ")) }
+                    if (meta.lat != null && meta.lon != null) {
+                        Text(Geo.format(meta.lat, meta.lon, s.coordFormat))
+                        meta.accuracyM?.let { Text("Accuracy ±${Geo.distance(it.toDouble(), s.units)}") }
                     }
-                    if (record.mock) Text("Mock location was detected", color = Color(0xFFFFB74D))
-                    if (record.note.isNotBlank()) Text("Note: ${record.note}")
+                    if (meta.mock) Text("Mock location was detected", color = Color(0xFFFFB74D))
+                    if (meta.note.isNotBlank()) Text("Note: ${meta.note}")
+                } else if (record != null) {
+                    Text("ID ${record.id}")
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(verdict)
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        dismissButton = {
+            if (meta?.lat != null && meta.lon != null) {
+                TextButton(onClick = {
+                    val label = Uri.encode(meta.note.ifBlank { item.name })
+                    val geo = Uri.parse("geo:${meta.lat},${meta.lon}?q=${meta.lat},${meta.lon}($label)")
+                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, geo)) }
+                        .onFailure { Toast.makeText(context, "No maps app installed", Toast.LENGTH_SHORT).show() }
+                }) { Text("Open in Maps") }
+            }
+        }
     )
 }

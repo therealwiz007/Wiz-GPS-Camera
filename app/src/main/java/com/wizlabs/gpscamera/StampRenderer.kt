@@ -81,8 +81,34 @@ object StampFormat {
  * image side, so the stamp has the same proportions in portrait and landscape.
  */
 object StampRenderer {
-    private val TEAL = 0xFF70DCE8.toInt()
-    private val GLASS = 0xB32B2F33.toInt()
+    /** Colours for one stamp style. */
+    private class Palette(
+        val card: Int?,          // null = no card (text with shadows)
+        val stroke: Int,
+        val title: Int,
+        val body: Int,
+        val small: Int,
+        val radius: Float,
+        val accentBar: Boolean
+    )
+
+    private fun withAlpha(rgb: Int, percent: Int): Int =
+        ((percent.coerceIn(0, 100) * 255 / 100) shl 24) or (rgb and 0x00FFFFFF)
+
+    private fun palette(s: AppSettings): Palette {
+        val textOnly = s.template == StampTemplate.TEXT_ONLY || s.style == StampStyle.MINIMAL
+        return when {
+            textOnly -> Palette(null, 0, Color.WHITE, 0xFFEDEFF2.toInt(), 0xFFD7DCE1.toInt(), 30f, false)
+            s.style == StampStyle.CLASSIC ->
+                Palette(withAlpha(0x0E1215, s.opacity), 0x33FFFFFF, Color.WHITE, 0xFFE3E7EA.toInt(), 0xFFC4CBD1.toInt(), 6f, false)
+            s.style == StampStyle.LIGHT ->
+                Palette(withAlpha(0xFFFFFF, s.opacity), 0x22000000, 0xFF111A20.toInt(), 0xFF2D3840.toInt(), 0xFF4B5860.toInt(), 30f, false)
+            s.style == StampStyle.BOLD ->
+                Palette(withAlpha(0x091923, s.opacity), 0x00000000, Color.WHITE, 0xFFEDEFF2.toInt(), 0xFFD7DCE1.toInt(), 16f, true)
+            else ->
+                Palette(withAlpha(0x2B2F33, s.opacity), 0x4DFFFFFF, Color.WHITE, 0xFFEDEFF2.toInt(), 0xFFD7DCE1.toInt(), 30f, false)
+        }
+    }
 
     private class Line(val text: String, val paint: TextPaint, val maxLines: Int, var spaceBefore: Float)
 
@@ -106,20 +132,24 @@ object StampRenderer {
         val scale = ref / 1080f
         val margin = 24f * scale
         val compact = s.template == StampTemplate.COMPACT
-        val textOnly = s.template == StampTemplate.TEXT_ONLY
+        val pal = palette(s)
+        val textOnly = pal.card == null
         val withMap = s.template == StampTemplate.FULL && s.showMap
         val left = s.position == StampPosition.LEFT
-        val f = if (compact) 0.85f else 1f
+        val f = (if (compact) 0.85f else 1f) * s.textScale.coerceIn(80, 140) / 100f
         val pad = (if (compact) 14f else 20f) * scale
         val gap = 16f * scale
         val shadow = textOnly
+        // On the light card a pale accent would be unreadable, so darken it there.
+        val accentColor = if (s.style == StampStyle.LIGHT && !textOnly) darken(s.accent) else s.accent
 
-        val titlePaint = paint(Color.WHITE, 38f * scale * f, "sans-serif-medium", shadow, scale)
-        val bodyPaint = paint(0xFFEDEFF2.toInt(), 31f * scale * f, "sans-serif", shadow, scale)
-        val notePaint = paint(TEAL, 31f * scale * f, "sans-serif-medium", shadow, scale)
-        val smallPaint = paint(0xFFD7DCE1.toInt(), 26f * scale * f, "sans-serif", shadow, scale)
-        val accent = paint(TEAL, 26f * scale * f, "sans-serif-medium", shadow, scale)
-        val warn = paint(0xFFFFB74D.toInt(), 26f * scale * f, "sans-serif-bold", shadow, scale)
+        val titlePaint = paint(pal.title, 38f * scale * f, "sans-serif-medium", shadow, scale)
+        val bodyPaint = paint(pal.body, 31f * scale * f, "sans-serif", shadow, scale)
+        val notePaint = paint(accentColor, 31f * scale * f, "sans-serif-medium", shadow, scale)
+        val smallPaint = paint(pal.small, 26f * scale * f, "sans-serif", shadow, scale)
+        val accent = paint(accentColor, 26f * scale * f, "sans-serif-medium", shadow, scale)
+        val warn = paint(if (s.style == StampStyle.LIGHT && !textOnly) 0xFFD84315.toInt() else 0xFFFFB74D.toInt(), 26f * scale * f, "sans-serif-bold", shadow, scale)
+        if (s.style == StampStyle.BOLD && !textOnly) titlePaint.color = accentColor
 
         // ---- Build the text lines from the enabled fields -------------------------------------
         val sp = 10f * scale * f
@@ -129,6 +159,7 @@ object StampRenderer {
         val lon = d.lon
         val hasFix = lat != null && lon != null
 
+        if (d.projectName.isNotBlank()) lines.add(Line(d.projectName.uppercase(Locale.getDefault()), accent, 1, sp))
         if (s.showNote && d.note.isNotBlank()) lines.add(Line(d.note, notePaint, 2, sp))
 
         if (s.showAddress) {
@@ -150,7 +181,7 @@ object StampRenderer {
         // If the address could not be resolved, always fall back to showing the coordinates.
         val forceCoords = s.showAddress && hasFix && d.address == null
         if (s.showCoords || forceCoords) {
-            val text = if (lat != null && lon != null) String.format(Locale.US, "Lat %.6f°  Long %.6f°", lat, lon)
+            val text = if (lat != null && lon != null) Geo.format(lat, lon, s.coordFormat)
             else "Coordinates unavailable"
             lines.add(Line(text, bodyPaint, 1, sp2))
         }
@@ -158,16 +189,16 @@ object StampRenderer {
         if (s.showPlusCode && d.plusCode != null) lines.add(Line("Plus code  ${d.plusCode}", smallPaint, 1, sp2))
 
         val motion = ArrayList<String>()
-        if (s.showAltitude) d.altitudeM?.let { motion.add("Alt ${it.toInt()} m") }
+        if (s.showAltitude) d.altitudeM?.let { motion.add("Alt ${Geo.distance(it, s.units)}") }
         if (s.showHeading) d.headingDeg?.let { motion.add("Hdg ${StampFormat.heading(it)}") }
-        if (s.showSpeed) d.speedKmh?.let { motion.add("Speed ${it.toInt()} km/h") }
+        if (s.showSpeed) d.speedKmh?.let { motion.add("Speed ${Geo.speed(it, s.units)}") }
         if (motion.isNotEmpty()) lines.add(Line(motion.joinToString("  ·  "), smallPaint, 2, sp2))
 
         if (s.showAccuracy) {
             val acc = d.accuracyM
             val text = if (acc != null) {
                 val age = d.fixAgeS ?: 0
-                "GPS accuracy ±${acc.toInt()} m" + (if (age > 15) " · fix ${age}s old" else "")
+                "GPS accuracy ±${Geo.distance(acc.toDouble(), s.units)}" + (if (age > 15) " · fix ${age}s old" else "")
             } else "GPS location unavailable"
             lines.add(Line(text, accent, 1, sp2))
         }
@@ -216,22 +247,30 @@ object StampRenderer {
 
         val pl = if (left) margin else (w - panelW) / 2f
         val pt = if (s.position == StampPosition.TOP) margin else h - panelH - margin
-        val radius = 30f * scale
+        val radius = pal.radius * scale
 
         // ---- Panel ---------------------------------------------------------------------------
-        if (!textOnly) {
+        if (pal.card != null) {
             val rect = RectF(pl, pt, pl + panelW, pt + panelH)
             val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = 0x40000000
                 setShadowLayer(14f * scale, 0f, 5f * scale, 0x66000000)
             }
             canvas.drawRoundRect(rect, radius, radius, shadowPaint)
-            canvas.drawRoundRect(rect, radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = GLASS })
-            canvas.drawRoundRect(rect, radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = 0x4DFFFFFF
-                style = Paint.Style.STROKE
-                strokeWidth = 1.5f * scale
-            })
+            canvas.drawRoundRect(rect, radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.card })
+            if (pal.stroke != 0) {
+                canvas.drawRoundRect(rect, radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = pal.stroke
+                    style = Paint.Style.STROKE
+                    strokeWidth = 1.5f * scale
+                })
+            }
+            if (pal.accentBar) {
+                canvas.save()
+                canvas.clipPath(Path().apply { addRoundRect(rect, radius, radius, Path.Direction.CW) })
+                canvas.drawRect(pl, pt, pl + 9f * scale, pt + panelH, Paint().apply { color = s.accent })
+                canvas.restore()
+            }
         }
 
         // ---- Map and divider -----------------------------------------------------------------
@@ -288,6 +327,13 @@ object StampRenderer {
             val baseline = if (s.position == StampPosition.TOP) h - margin else margin + wm.textSize
             canvas.drawText(s.watermark, w - margin, baseline, wm)
         }
+    }
+
+    private fun darken(c: Int): Int {
+        val r = ((c shr 16) and 0xFF) * 6 / 10
+        val g = ((c shr 8) and 0xFF) * 6 / 10
+        val b = (c and 0xFF) * 6 / 10
+        return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
     }
 
     private fun drawMap(canvas: Canvas, rect: RectF, map: Bitmap?, scale: Float) {

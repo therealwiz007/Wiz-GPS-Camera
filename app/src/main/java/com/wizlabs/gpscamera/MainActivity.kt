@@ -1,6 +1,7 @@
 package com.wizlabs.gpscamera
 
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -16,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -25,6 +27,7 @@ private enum class Screen { CAMERA, GALLERY, SETTINGS }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -35,6 +38,24 @@ class MainActivity : ComponentActivity() {
         TimeSync.init(applicationContext)
         setContent { WizApp() }
     }
+
+    // Volume up/down act as a shutter button while the camera screen is showing.
+    private fun isVolume(keyCode: Int) =
+        keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        val handler = ShutterKeys.handler
+        if (isVolume(keyCode) && handler != null) {
+            if (event.repeatCount == 0) handler()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (isVolume(keyCode) && ShutterKeys.handler != null) return true
+        return super.onKeyUp(keyCode, event)
+    }
 }
 
 @Composable
@@ -42,6 +63,7 @@ private fun WizApp() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val repo = remember { SettingsRepo(context) }
+    val projects = remember { ProjectStore(context) }
     val location = remember { LocationEngine(context) }
     val sensors = remember { SensorHub(context) }
     var screen by remember { mutableStateOf(Screen.CAMERA) }
@@ -80,18 +102,23 @@ private fun WizApp() {
             onSurface = Color.White
         )
     ) {
-        // The app stays closed until precise location is allowed, GPS is on and a fresh fix exists.
-        GpsGate(location) {
-            when (screen) {
-                Screen.CAMERA -> CameraScreen(
-                    repo = repo,
-                    location = location,
-                    sensors = sensors,
-                    onGallery = { screen = Screen.GALLERY },
-                    onSettings = { screen = Screen.SETTINGS }
-                )
-                Screen.GALLERY -> GalleryScreen(onBack = { screen = Screen.CAMERA })
-                Screen.SETTINGS -> SettingsScreen(repo = repo, onBack = { screen = Screen.CAMERA })
+        if (!repo.settings.onboardingDone) {
+            Onboarding(onDone = { repo.update { it.copy(onboardingDone = true) } })
+        } else {
+            // The app stays closed until precise location is allowed, GPS is on and a fresh fix exists.
+            GpsGate(location) {
+                when (screen) {
+                    Screen.CAMERA -> CameraScreen(
+                        repo = repo,
+                        projects = projects,
+                        location = location,
+                        sensors = sensors,
+                        onGallery = { screen = Screen.GALLERY },
+                        onSettings = { screen = Screen.SETTINGS }
+                    )
+                    Screen.GALLERY -> GalleryScreen(repo = repo, projects = projects, onBack = { screen = Screen.CAMERA })
+                    Screen.SETTINGS -> SettingsScreen(repo = repo, projects = projects, onBack = { screen = Screen.CAMERA })
+                }
             }
         }
     }

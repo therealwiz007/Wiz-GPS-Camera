@@ -37,12 +37,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Cached
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Exposure
+import androidx.compose.material.icons.filled.FlashAuto
+import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.FlashlightOn
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Grid3x3
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Settings
@@ -53,6 +63,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -78,6 +90,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.draw.rotate as rotateModifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -103,12 +116,20 @@ import org.osmdroid.util.GeoPoint
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import org.osmdroid.views.MapView
+import android.media.MediaActionSound
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
+
+/** Lets the activity route the volume keys to the shutter while the camera is on screen. */
+object ShutterKeys {
+    @Volatile
+    var handler: (() -> Unit)? = null
+}
 
 private val CAMERA_PERMS = arrayOf(
     Manifest.permission.CAMERA,
@@ -129,6 +150,7 @@ private fun snapshotMap(view: MapView?, reuse: Bitmap?): Bitmap? {
 @Composable
 fun CameraScreen(
     repo: SettingsRepo,
+    projects: ProjectStore,
     location: LocationEngine,
     sensors: SensorHub,
     onGallery: () -> Unit,
@@ -148,7 +170,13 @@ fun CameraScreen(
         )
     }
     var lens by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
-    var flash by remember { mutableStateOf(false) }
+    var zoomRatio by remember { mutableStateOf(1f) }
+    var showExposure by remember { mutableStateOf(false) }
+    var exposureIndex by remember { mutableIntStateOf(0) }
+    var showProjectPicker by remember { mutableStateOf(false) }
+    val activeProject = projects.byId(settings.projectId)
+    val sound = remember { MediaActionSound().apply { load(MediaActionSound.SHUTTER_CLICK) } }
+    DisposableEffect(Unit) { onDispose { sound.release() } }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var camera by remember { mutableStateOf<Camera?>(null) }
     var previewView by remember { mutableStateOf<PreviewView?>(null) }
@@ -264,6 +292,11 @@ fun CameraScreen(
                 ic
             )
             imageCapture = ic
+            zoomRatio = 1f
+            exposureIndex = 0
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // The screen was left or the camera settings changed; not an error.
+            throw e
         } catch (e: Exception) {
             status = "Camera unavailable: ${e.localizedMessage}"
         }
@@ -273,9 +306,17 @@ fun CameraScreen(
         onDispose { providerHolder[0]?.unbindAll() }
     }
 
-    LaunchedEffect(imageCapture, flash, lens) {
-        imageCapture?.flashMode =
-            if (flash && lens == CameraSelector.LENS_FACING_BACK) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF
+    LaunchedEffect(imageCapture, camera, settings.flash, lens) {
+        val back = lens == CameraSelector.LENS_FACING_BACK
+        imageCapture?.flashMode = when {
+            !back -> ImageCapture.FLASH_MODE_OFF
+            settings.flash == FlashChoice.AUTO -> ImageCapture.FLASH_MODE_AUTO
+            settings.flash == FlashChoice.ON -> ImageCapture.FLASH_MODE_ON
+            else -> ImageCapture.FLASH_MODE_OFF
+        }
+        camera?.let { cam ->
+            if (cam.cameraInfo.hasFlashUnit()) runCatching { cam.cameraControl.enableTorch(back && settings.flash == FlashChoice.TORCH) }
+        }
     }
 
     // Keep the photo upright (and the stamp on the right edge) even when the phone is rotated.
@@ -331,19 +372,23 @@ fun CameraScreen(
                         status = "Blocked: mock location detected"
                         break
                     }
+                    val project = projects.byId(s.projectId)
                     val data = buildStampData(
                         s, fix, location.address, location.addressCached, location.weather,
-                        sensors.headingDeg, location.declination, newPhotoId()
+                        sensors.headingDeg, location.declination, newPhotoId(), project?.name ?: ""
                     )
                     val mapCopy = snapshotMap(mapView, null)
                     if (s.vibrate) Haptics.shutter(context)
+                    if (s.shutterSound) sound.play(MediaActionSound.SHUTTER_CLICK)
                     launch {
                         blink = true
                         delay(120)
                         blink = false
                     }
                     val res = suspendCancellableCoroutine<Result<PhotoPipeline.Saved>> { c ->
-                        PhotoPipeline.capture(context, ic, data, s, mapCopy, logo) { c.resume(it) }
+                        val front = lens == CameraSelector.LENS_FACING_FRONT
+                        val reverse = if (front && !s.mirrorFront) false else null
+                        PhotoPipeline.capture(context, ic, data, s, mapCopy, logo, project, reverse) { c.resume(it) }
                     }
                     if (res.isSuccess) {
                         saved++
@@ -360,6 +405,23 @@ fun CameraScreen(
             }
         }
         Unit
+    }
+
+    // Volume keys take a photo while this screen is showing (if enabled in Settings).
+    val shootRef = rememberUpdatedState(shoot)
+    DisposableEffect(settings.volumeShutter) {
+        ShutterKeys.handler = if (settings.volumeShutter) ({ shootRef.value() }) else null
+        onDispose { ShutterKeys.handler = null }
+    }
+
+    fun setZoom(target: Float) {
+        val cam = camera ?: return
+        val zs = cam.cameraInfo.zoomState.value ?: return
+        val z = target.coerceIn(zs.minZoomRatio, zs.maxZoomRatio)
+        cam.cameraControl.setZoomRatio(z)
+        zoomRatio = z
+        zoomText = String.format(Locale.US, "%.1fx", z)
+        zoomStamp = System.nanoTime()
     }
 
     // ---- UI ---------------------------------------------------------------------------------
@@ -439,13 +501,24 @@ fun CameraScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { flash = !flash }, enabled = backLens) {
+                IconButton(
+                    onClick = {
+                        repo.update { it.copy(flash = it.flash.next()) }
+                        status = "Flash: " + repo.settings.flash.label
+                    },
+                    enabled = backLens
+                ) {
                     Icon(
-                        Icons.Filled.FlashOn,
-                        contentDescription = "Flash",
+                        when (settings.flash) {
+                            FlashChoice.OFF -> Icons.Filled.FlashOff
+                            FlashChoice.AUTO -> Icons.Filled.FlashAuto
+                            FlashChoice.ON -> Icons.Filled.FlashOn
+                            FlashChoice.TORCH -> Icons.Filled.FlashlightOn
+                        },
+                        contentDescription = "Flash ${settings.flash.label}",
                         tint = when {
                             !backLens -> Color.Gray
-                            flash -> WizTeal
+                            settings.flash != FlashChoice.OFF -> WizTeal
                             else -> Color.White
                         },
                         modifier = Modifier.size(28.dp)
@@ -477,6 +550,14 @@ fun CameraScreen(
                         Icons.Filled.Grid3x3,
                         contentDescription = "Grid",
                         tint = if (settings.gridOn) WizTeal else Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                IconButton(onClick = { showExposure = !showExposure }) {
+                    Icon(
+                        Icons.Filled.Exposure,
+                        contentDescription = "Exposure",
+                        tint = if (showExposure || exposureIndex != 0) WizTeal else Color.White,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -531,7 +612,8 @@ fun CameraScreen(
                             while (true) {
                                 val data = buildStampData(
                                     settings, location.fix, location.address, location.addressCached,
-                                    location.weather, sensors.headingDeg, location.declination, "WGC-LIVE"
+                                    location.weather, sensors.headingDeg, location.declination, "WGC-LIVE",
+                                    projects.byId(settings.projectId)?.name ?: ""
                                 )
                                 mapBuffer = snapshotMap(mapView, mapBuffer)
                                 val target = buffers[index]
@@ -609,6 +691,7 @@ fun CameraScreen(
                                     val zs = cam.cameraInfo.zoomState.value ?: return@detectTransformGestures
                                     val target = (zs.zoomRatio * zoom).coerceIn(zs.minZoomRatio, zs.maxZoomRatio)
                                     cam.cameraControl.setZoomRatio(target)
+                                    zoomRatio = target
                                     zoomText = String.format(Locale.US, "%.1fx", target)
                                     zoomStamp = System.nanoTime()
                                 }
@@ -644,6 +727,60 @@ fun CameraScreen(
                                     style = MaterialTheme.typography.labelSmall,
                                     maxLines = 1,
                                     modifier = Modifier.width(120.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Project chip and live compass, top-right of the preview.
+                    Column(
+                        Modifier.align(Alignment.TopEnd).padding(10.dp),
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            onClick = { showProjectPicker = true },
+                            shape = RoundedCornerShape(50),
+                            color = if (activeProject != null) WizTeal.copy(alpha = .92f) else Color(0x80091923),
+                            contentColor = if (activeProject != null) WizNavy else Color.White
+                        ) {
+                            Row(
+                                Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.Folder, contentDescription = "Project", modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    activeProject?.name ?: "No project",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    modifier = Modifier.widthIn(max = 130.dp)
+                                )
+                            }
+                        }
+                        val heading = sensors.headingDeg
+                        if (settings.showCompass && heading != null) {
+                            val trueHeading = ((heading + (location.declination ?: 0f)) % 360f + 360f) % 360f
+                            Row(
+                                Modifier
+                                    .background(Color(0x80091923), RoundedCornerShape(50))
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Filled.Navigation,
+                                    contentDescription = null,
+                                    tint = WizTeal,
+                                    // The arrow points to north on screen.
+                                    modifier = Modifier.size(14.dp).rotateModifier(-trueHeading)
+                                )
+                                Spacer(Modifier.width(5.dp))
+                                Text(
+                                    StampFormat.heading(trueHeading),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
@@ -685,6 +822,80 @@ fun CameraScreen(
                     }
 
                     if (blink) Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = .55f)))
+                }
+            }
+
+            // Zoom presets (only the ones this camera supports) and the exposure slider.
+            Column(
+                Modifier.fillMaxWidth().background(WizBar).padding(top = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val cam = camera
+                if (showExposure && cam != null) {
+                    val es = cam.cameraInfo.exposureState
+                    if (es.isExposureCompensationSupported) {
+                        val range = es.exposureCompensationRange
+                        val step = es.exposureCompensationStep.toFloat()
+                        Row(
+                            Modifier
+                                .padding(horizontal = 24.dp)
+                                .background(Color(0x99091923), RoundedCornerShape(16.dp))
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                String.format(Locale.US, "%+.1f EV", exposureIndex * step),
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.width(56.dp)
+                            )
+                            Slider(
+                                value = exposureIndex.toFloat(),
+                                onValueChange = {
+                                    val idx = it.roundToInt().coerceIn(range.lower, range.upper)
+                                    if (idx != exposureIndex) {
+                                        exposureIndex = idx
+                                        cam.cameraControl.setExposureCompensationIndex(idx)
+                                    }
+                                },
+                                valueRange = range.lower.toFloat()..range.upper.toFloat(),
+                                colors = SliderDefaults.colors(thumbColor = WizTeal, activeTrackColor = WizTeal),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+                val zs = cam?.cameraInfo?.zoomState?.value
+                if (zs != null) {
+                    val presets = listOf(0.5f, 1f, 2f, 5f).filter { it >= zs.minZoomRatio - 0.01f && it <= zs.maxZoomRatio + 0.01f }
+                    if (presets.size > 1) {
+                        Row(
+                            Modifier
+                                .background(Color(0x80091923), RoundedCornerShape(50))
+                                .padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            presets.forEach { p ->
+                                val active = abs(zoomRatio - p) < 0.05f
+                                Box(
+                                    Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(if (active) WizTeal else Color.Transparent)
+                                        .clickable { setZoom(p) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        if (p < 1f) ".5" else "${p.toInt()}x",
+                                        color = if (active) WizNavy else Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -743,12 +954,24 @@ fun CameraScreen(
             onDismissRequest = { showNoteDialog = false },
             title = { Text("Note on photo") },
             text = {
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = { draft = it },
-                    maxLines = 3,
-                    label = { Text("e.g. Inspection – Pump 2") }
-                )
+                Column {
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = { draft = it },
+                        maxLines = 3,
+                        label = { Text("e.g. Inspection – Pump 2") }
+                    )
+                    if (settings.tags.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        Text("Quick tags", style = MaterialTheme.typography.labelMedium)
+                        ChipRow(settings.tags.map { it to it }, "") { tag ->
+                            draft = if (draft.isBlank()) tag else "${draft.trim()} · $tag"
+                        }
+                    }
+                    if (draft.isNotBlank()) {
+                        TextButton(onClick = { draft = "" }) { Text("Clear note") }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -758,6 +981,77 @@ fun CameraScreen(
             },
             dismissButton = { TextButton(onClick = { showNoteDialog = false }) { Text("Cancel") } }
         )
+    }
+
+    if (showProjectPicker) {
+        ProjectPickerDialog(
+            projects = projects,
+            selectedId = settings.projectId,
+            onSelect = { id ->
+                repo.update { it.copy(projectId = id) }
+                showProjectPicker = false
+            },
+            onDismiss = { showProjectPicker = false }
+        )
+    }
+}
+
+/** Choose the project new photos are filed under, or create one. */
+@Composable
+fun ProjectPickerDialog(
+    projects: ProjectStore,
+    selectedId: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+    title: String = "File new photos under",
+    allowNone: Boolean = true
+) {
+    var newName by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                if (allowNone) {
+                    ProjectRow("No project", selectedId.isEmpty()) { onSelect("") }
+                }
+                projects.projects.sortedByDescending { it.createdMs }.forEach { p ->
+                    ProjectRow(p.name, p.id == selectedId) { onSelect(p.id) }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        singleLine = true,
+                        label = { Text("New project") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        enabled = newName.isNotBlank(),
+                        onClick = { onSelect(projects.create(newName).id) }
+                    ) { Icon(Icons.Filled.Add, contentDescription = "Create project") }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+}
+
+@Composable
+private fun ProjectRow(name: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) WizTeal.copy(alpha = .25f) else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Folder, contentDescription = null, tint = if (selected) WizTeal else Color.White.copy(alpha = .7f))
+        Spacer(Modifier.width(10.dp))
+        Text(name, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
     }
 }
 

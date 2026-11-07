@@ -25,6 +25,51 @@ enum class ClockFormat(val label: String) {
     H24("24-hour")
 }
 
+/** Visual style of the stamp card. */
+enum class StampStyle(val label: String) {
+    GLASS("Glass"),
+    CLASSIC("Classic"),
+    LIGHT("Light"),
+    BOLD("Bold"),
+    MINIMAL("Minimal")
+}
+
+enum class CoordFormat(val label: String) {
+    DECIMAL("Decimal"),
+    DMS("Deg/min/sec"),
+    UTM("UTM"),
+    MGRS("MGRS")
+}
+
+enum class Units(val label: String) {
+    METRIC("Metric"),
+    IMPERIAL("Imperial")
+}
+
+enum class FlashChoice(val label: String) {
+    OFF("Off"),
+    AUTO("Auto"),
+    ON("On"),
+    TORCH("Torch");
+
+    fun next(): FlashChoice {
+        val all = values()
+        return all[(ordinal + 1) % all.size]
+    }
+}
+
+/** Accent colours offered for the stamp (ARGB). */
+val STAMP_ACCENTS = listOf(
+    "Teal" to 0xFF70DCE8.toInt(),
+    "Amber" to 0xFFFFC107.toInt(),
+    "Lime" to 0xFF9CCC65.toInt(),
+    "Coral" to 0xFFFF7043.toInt(),
+    "Sky" to 0xFF64B5F6.toInt(),
+    "White" to 0xFFFFFFFF.toInt()
+)
+
+val DEFAULT_TAGS = listOf("Before", "After", "Damage", "Inspection", "Delivery", "Site visit")
+
 enum class MockPolicy(val label: String) {
     FLAG("Flag on photo"),
     BLOCK("Block capture")
@@ -76,7 +121,24 @@ data class AppSettings(
     val megapixels: Int = 12,
     val aspect: AspectChoice = AspectChoice.R4_3,
     val vibrate: Boolean = true,
-    val mockPolicy: MockPolicy = MockPolicy.FLAG
+    val mockPolicy: MockPolicy = MockPolicy.FLAG,
+    val style: StampStyle = StampStyle.GLASS,
+    val accent: Int = STAMP_ACCENTS[0].second,
+    /** Card opacity in percent (30–100). */
+    val opacity: Int = 70,
+    /** Text size in percent of the default (80–140). */
+    val textScale: Int = 100,
+    val coordFormat: CoordFormat = CoordFormat.DECIMAL,
+    val units: Units = Units.METRIC,
+    val flash: FlashChoice = FlashChoice.OFF,
+    val volumeShutter: Boolean = true,
+    val mirrorFront: Boolean = true,
+    val showCompass: Boolean = true,
+    val shutterSound: Boolean = false,
+    val tags: List<String> = DEFAULT_TAGS,
+    /** Empty string means "no project". */
+    val projectId: String = "",
+    val onboardingDone: Boolean = false
 )
 
 class SettingsRepo(context: Context) {
@@ -130,7 +192,21 @@ class SettingsRepo(context: Context) {
             megapixels = i("megapixels", d.megapixels),
             aspect = enumOf(prefs.getString("aspect", null), d.aspect),
             vibrate = b("vibrate", d.vibrate),
-            mockPolicy = enumOf(prefs.getString("mockPolicy", null), d.mockPolicy)
+            mockPolicy = enumOf(prefs.getString("mockPolicy", null), d.mockPolicy),
+            style = enumOf(prefs.getString("style", null), d.style),
+            accent = i("accent", d.accent),
+            opacity = i("opacity", d.opacity).coerceIn(30, 100),
+            textScale = i("textScale", d.textScale).coerceIn(80, 140),
+            coordFormat = enumOf(prefs.getString("coordFormat", null), d.coordFormat),
+            units = enumOf(prefs.getString("units", null), d.units),
+            flash = enumOf(prefs.getString("flash", null), d.flash),
+            volumeShutter = b("volumeShutter", d.volumeShutter),
+            mirrorFront = b("mirrorFront", d.mirrorFront),
+            showCompass = b("showCompass", d.showCompass),
+            shutterSound = b("shutterSound", d.shutterSound),
+            tags = prefs.getString("tags", null)?.split('\n')?.filter { it.isNotBlank() } ?: d.tags,
+            projectId = s("projectId", d.projectId),
+            onboardingDone = b("onboardingDone", d.onboardingDone)
         )
     }
 
@@ -167,6 +243,20 @@ class SettingsRepo(context: Context) {
             .putString("aspect", n.aspect.name)
             .putBoolean("vibrate", n.vibrate)
             .putString("mockPolicy", n.mockPolicy.name)
+            .putString("style", n.style.name)
+            .putInt("accent", n.accent)
+            .putInt("opacity", n.opacity)
+            .putInt("textScale", n.textScale)
+            .putString("coordFormat", n.coordFormat.name)
+            .putString("units", n.units.name)
+            .putString("flash", n.flash.name)
+            .putBoolean("volumeShutter", n.volumeShutter)
+            .putBoolean("mirrorFront", n.mirrorFront)
+            .putBoolean("showCompass", n.showCompass)
+            .putBoolean("shutterSound", n.shutterSound)
+            .putString("tags", n.tags.joinToString("\n"))
+            .putString("projectId", n.projectId)
+            .putBoolean("onboardingDone", n.onboardingDone)
             .apply()
     }
 }
@@ -204,7 +294,8 @@ data class StampData(
     val clockDeviationMs: Long,
     val mock: Boolean,
     val note: String,
-    val photoId: String
+    val photoId: String,
+    val projectName: String = ""
 )
 
 fun newPhotoId(): String =
@@ -218,7 +309,8 @@ fun buildStampData(
     weather: String?,
     magneticHeading: Float?,
     declination: Float?,
-    photoId: String
+    photoId: String,
+    projectName: String = ""
 ): StampData {
     val t = TimeSync.now()
     val heading = magneticHeading?.let { ((it + (declination ?: 0f)) % 360f + 360f) % 360f }
@@ -240,6 +332,7 @@ fun buildStampData(
         clockDeviationMs = t.deviationMs,
         mock = fix?.isMock == true,
         note = s.note.trim(),
-        photoId = photoId
+        photoId = photoId,
+        projectName = projectName
     )
 }

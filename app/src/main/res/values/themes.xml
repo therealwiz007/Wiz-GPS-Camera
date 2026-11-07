@@ -1,0 +1,8 @@
+<resources>
+    <!-- Shown by the SplashScreen API while the app starts, then replaced by the app theme. -->
+    <style name="Theme.Wiz.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/wiz_bar</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@android:style/Theme.Material.NoActionBar</item>
+    </style>
+</resources>

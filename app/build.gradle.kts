@@ -12,13 +12,15 @@ android {
         applicationId = "com.wizlabs.gpscamera"
         minSdk = 29
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.2.1"
+        versionCode = 5
+        versionName = "2.0.0"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             val ks = System.getenv("KEYSTORE_FILE")
             if (!ks.isNullOrBlank()) {
                 signingConfig = signingConfigs.create("release") {
@@ -64,4 +66,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     implementation("androidx.exifinterface:exifinterface:1.4.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
+    testImplementation("junit:junit:4.13.2")
 }
