@@ -1,0 +1,7 @@
+2.1.0 – fresh Wiz look
+• New black-and-yellow design and app icon
+• Live GPS lock indicator and compass rose on the camera
+• Shutter burst, capture flash, and the photo flies into the gallery
+• Stamp slides in when you change its style
+• Satellite "locking on" screen while GPS gets a fix
+• Smoother screens with smaller animations that stay light on battery and memory

@@ -78,12 +78,29 @@ jobs:
           ls -lh "$APK"
           ls -lh "$AAB"
 
-      - name: Upload production APK and AAB
+      - name: Name release files
+        shell: bash
+        run: |
+          set -e
+          VERSION=$(grep -m1 -oE "versionName = \"[^\"]+\"" app/build.gradle.kts | cut -d\" -f2)
+          NAME="Wiz GPS Camera ($VERSION)"
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/$NAME.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/$NAME.aab"
+          echo "RELEASE_NAME=$NAME" >> "$GITHUB_ENV"
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: wiz-gps-camera-production
-          path: |
-            app/build/outputs/apk/release/app-release.apk
-            app/build/outputs/bundle/release/app-release.aab
+          name: ${{ env.RELEASE_NAME }} APK
+          path: dist/${{ env.RELEASE_NAME }}.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RELEASE_NAME }} AAB
+          path: dist/${{ env.RELEASE_NAME }}.aab
           if-no-files-found: error
           retention-days: 30

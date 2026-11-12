@@ -327,7 +327,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                         }
                     }
                     IconButton(onClick = { searching = !searching; if (!searching) query = "" }) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search", tint = if (searching) WizTeal else WizText)
+                        Icon(Icons.Filled.Search, contentDescription = "Search", tint = if (searching) WizAccent else WizText)
                     }
                     IconButton(onClick = { mapMode = !mapMode }) {
                         Icon(
@@ -365,7 +365,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                         ExportMenu(exportMenu, { exportMenu = false }) { kind -> runExport(kind, items.filter { it.id in selected }) }
                     }
                     IconButton(onClick = { share(items.filter { it.id in selected }) }) {
-                        Icon(Icons.Filled.Share, contentDescription = "Share", tint = WizTeal)
+                        Icon(Icons.Filled.Share, contentDescription = "Share", tint = WizAccent)
                     }
                     IconButton(onClick = { confirmDelete = items.filter { it.id in selected } }) {
                         Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = WizBad)
@@ -382,9 +382,9 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = WizMuted) },
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = WizTeal,
+                        focusedBorderColor = WizAccent,
                         unfocusedBorderColor = WizLine,
-                        cursorColor = WizTeal
+                        cursorColor = WizAccent
                     ),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp)
                 )
@@ -415,14 +415,9 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Box(
-                        Modifier.size(88.dp).clip(RoundedCornerShape(28.dp)).background(WizPanel),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, tint = WizTeal, modifier = Modifier.size(40.dp))
-                    }
-                    Spacer(Modifier.height(20.dp))
-                    Text("No photos yet", color = WizText, style = MaterialTheme.typography.titleLarge)
+                    EmptyGalleryArt(Modifier.enterRise(0))
+                    Spacer(Modifier.height(12.dp))
+                    Text("No photos yet", color = WizText, style = MaterialTheme.typography.titleLarge, modifier = Modifier.enterRise(1))
                     Spacer(Modifier.height(6.dp))
                     Text(
                         "Every photo you take is stamped with place and time, and shows up here.",
@@ -542,7 +537,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
             confirmButton = {},
             text = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(color = WizTeal, modifier = Modifier.size(28.dp))
+                    CircularProgressIndicator(color = WizAccent, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(16.dp))
                     Text(msg)
                 }
@@ -662,7 +657,7 @@ private fun PhotoCell(item: PhotoItem, isSelected: Boolean, onClick: () -> Unit,
         Modifier
             .aspectRatio(1f)
             .clip(shape)
-            .background(if (isSelected) WizTeal.copy(alpha = .18f) else WizPanel)
+            .background(if (isSelected) WizAccent.copy(alpha = .18f) else WizPanel)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
         Box(Modifier.fillMaxSize().scale(inset).clip(shape)) {
@@ -683,7 +678,7 @@ private fun PhotoCell(item: PhotoItem, isSelected: Boolean, onClick: () -> Unit,
                     .padding(8.dp)
                     .size(22.dp)
                     .clip(CircleShape)
-                    .background(WizTeal),
+                    .background(WizAccent),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.Check, contentDescription = "Selected", tint = WizNavy, modifier = Modifier.size(15.dp))
@@ -700,7 +695,7 @@ private fun VerifyBadge(result: Integrity.Result?, modifier: Modifier = Modifier
         else -> return
     }
     Box(
-        modifier.size(22.dp).clip(CircleShape).background(Color(0xB3091923)),
+        modifier.size(22.dp).clip(CircleShape).background(Color(0xB30B0D10)),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(15.dp))
@@ -719,7 +714,7 @@ private fun VerifyChip(result: Integrity.Result?, modifier: Modifier = Modifier)
     Row(
         modifier
             .clip(RoundedCornerShape(50))
-            .background(Color(0xB3091923))
+            .background(Color(0xB30B0D10))
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -771,7 +766,7 @@ private fun Viewer(
             }
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 val b = bmp
-                if (b == null) CircularProgressIndicator(color = WizTeal)
+                if (b == null) CircularProgressIndicator(color = WizAccent)
                 else Image(
                     bitmap = b.asImageBitmap(),
                     contentDescription = item.name,

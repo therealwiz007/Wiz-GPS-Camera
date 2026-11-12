@@ -60,6 +60,7 @@ enum class FlashChoice(val label: String) {
 
 /** Accent colours offered for the stamp (ARGB). */
 val STAMP_ACCENTS = listOf(
+    "Wiz Yellow" to 0xFFFFC400.toInt(),
     "Teal" to 0xFF70DCE8.toInt(),
     "Amber" to 0xFFFFC107.toInt(),
     "Lime" to 0xFF9CCC65.toInt(),

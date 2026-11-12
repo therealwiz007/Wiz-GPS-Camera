@@ -1,5 +1,10 @@
 package com.wizlabs.gpscamera
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -180,7 +185,7 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF0B2230), WizNavy, WizBar)))
+            .background(Brush.verticalGradient(listOf(Color(0xFF191D24), WizNavy, WizBar)))
     ) {
         Column(
             Modifier
@@ -191,8 +196,16 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.weight(1f))
-            RadarLogo(searching = step == 2)
+            SatelliteLockHero(searching = step == 2, modifier = Modifier.enterRise(0))
             Spacer(Modifier.height(28.dp))
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = {
+                    (fadeIn(tween(260)) + slideInVertically(tween(320)) { it / 4 }) togetherWith fadeOut(tween(150))
+                },
+                label = "gateTitle",
+                modifier = Modifier.enterRise(1)
+            ) { step ->
             Text(
                 when (step) {
                     0 -> "Photos that prove\nwhere you were"
@@ -201,8 +214,10 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
                 },
                 color = WizText,
                 style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
+            }
             Spacer(Modifier.height(10.dp))
             Text(
                 when (step) {
@@ -231,6 +246,7 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
             Column(
                 Modifier
                     .fillMaxWidth()
+                    .enterRise(3)
                     .clip(RoundedCornerShape(20.dp))
                     .background(WizPanel.copy(alpha = .85f))
                     .padding(horizontal = 16.dp, vertical = 6.dp)
@@ -264,7 +280,7 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
                 }
                 else -> {
                     LinearProgressIndicator(
-                        color = WizTeal,
+                        color = WizAccent,
                         trackColor = WizPanelHi,
                         modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(50))
                     )
@@ -272,36 +288,6 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
                 }
             }
         }
-    }
-}
-
-/** App icon with expanding sonar rings while searching for a fix. */
-@Composable
-private fun RadarLogo(searching: Boolean) {
-    val t = rememberInfiniteTransition(label = "radar")
-    val phase by t.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart),
-        label = "radarPhase"
-    )
-    Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val maxR = size.minDimension / 2f
-            val ringCount = 3
-            for (i in 0 until ringCount) {
-                val p = (phase + i / ringCount.toFloat()) % 1f
-                val r = maxR * (0.32f + 0.68f * p)
-                val a = (1f - p) * if (searching) 0.55f else 0.22f
-                drawCircle(WizTeal.copy(alpha = a), radius = r, style = Stroke(width = 2.dp.toPx()))
-            }
-            drawCircle(WizTeal.copy(alpha = .08f), radius = maxR * 0.34f)
-        }
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = null,
-            modifier = Modifier.size(104.dp).clip(RoundedCornerShape(28.dp))
-        )
     }
 }
 
@@ -315,7 +301,7 @@ private fun StepRow(number: Int, label: String, done: Boolean, current: Boolean)
                 .background(
                     when {
                         done -> WizGood
-                        current -> WizTeal
+                        current -> WizAccent
                         else -> WizPanelHi
                     }
                 ),

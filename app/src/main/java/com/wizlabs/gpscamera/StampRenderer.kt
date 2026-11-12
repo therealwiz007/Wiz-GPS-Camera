@@ -104,7 +104,7 @@ object StampRenderer {
             s.style == StampStyle.LIGHT ->
                 Palette(withAlpha(0xFFFFFF, s.opacity), 0x22000000, 0xFF111A20.toInt(), 0xFF2D3840.toInt(), 0xFF4B5860.toInt(), 30f, false)
             s.style == StampStyle.BOLD ->
-                Palette(withAlpha(0x091923, s.opacity), 0x00000000, Color.WHITE, 0xFFEDEFF2.toInt(), 0xFFD7DCE1.toInt(), 16f, true)
+                Palette(withAlpha(0x0B0D10, s.opacity), 0x00000000, Color.WHITE, 0xFFEDEFF2.toInt(), 0xFFD7DCE1.toInt(), 16f, true)
             else ->
                 Palette(withAlpha(0x2B2F33, s.opacity), 0x4DFFFFFF, Color.WHITE, 0xFFEDEFF2.toInt(), 0xFFD7DCE1.toInt(), 30f, false)
         }

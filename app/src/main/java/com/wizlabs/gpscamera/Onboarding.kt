@@ -106,7 +106,7 @@ fun Onboarding(onDone: () -> Unit) {
                             modifier = Modifier.size(120.dp)
                         )
                     } else {
-                        Icon(page.icon, contentDescription = null, tint = WizTeal, modifier = Modifier.size(64.dp))
+                        Icon(page.icon, contentDescription = null, tint = WizAccent, modifier = Modifier.size(64.dp))
                     }
                 }
                 Spacer(Modifier.height(36.dp))
@@ -136,13 +136,13 @@ fun Onboarding(onDone: () -> Unit) {
                         .padding(horizontal = 4.dp)
                         .size(width = if (i == pager.currentPage) 22.dp else 8.dp, height = 8.dp)
                         .clip(CircleShape)
-                        .background(if (i == pager.currentPage) WizTeal else Color.White.copy(alpha = .3f))
+                        .background(if (i == pager.currentPage) WizAccent else Color.White.copy(alpha = .3f))
                 )
             }
         }
         Button(
             onClick = { if (last) onDone() else scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } },
-            colors = ButtonDefaults.buttonColors(containerColor = WizTeal, contentColor = WizNavy),
+            colors = ButtonDefaults.buttonColors(containerColor = WizAccent, contentColor = WizNavy),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).height(52.dp)
         ) {
             Text(if (last) "Get started" else "Next", fontWeight = FontWeight.Bold, fontSize = 16.sp)

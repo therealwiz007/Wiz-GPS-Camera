@@ -172,10 +172,10 @@ fun SettingsScreen(
     }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = WizTeal,
+        focusedBorderColor = WizAccent,
         unfocusedBorderColor = WizLine,
-        cursorColor = WizTeal,
-        focusedLabelColor = WizTeal
+        cursorColor = WizAccent,
+        focusedLabelColor = WizAccent
     )
 
     Column(
@@ -357,7 +357,7 @@ fun SettingsScreen(
                 projects.projects.sortedByDescending { it.createdMs }.forEachIndexed { i, p ->
                     if (i > 0) CardDivider()
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconTile(Icons.Filled.Folder, if (p.id == s.projectId) WizTeal else WizMuted)
+                        IconTile(Icons.Filled.Folder, if (p.id == s.projectId) WizAccent else WizMuted)
                         Spacer(Modifier.width(14.dp))
                         Text(
                             p.name,
@@ -498,7 +498,7 @@ fun SettingsScreen(
                 border = BorderStroke(1.dp, WizLine),
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                Icon(Icons.Filled.School, contentDescription = null, tint = WizTeal, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.School, contentDescription = null, tint = WizAccent, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Show the intro again", color = WizText)
             }
@@ -580,7 +580,7 @@ private fun LabeledSlider(
             onValueChange = { onChange(it.roundToInt()) },
             valueRange = min.toFloat()..max.toFloat(),
             steps = (max - min) / 5 - 1,
-            colors = SliderDefaults.colors(thumbColor = WizTeal, activeTrackColor = WizTeal, inactiveTrackColor = WizPanelHi)
+            colors = SliderDefaults.colors(thumbColor = WizAccent, activeTrackColor = WizAccent, inactiveTrackColor = WizPanelHi)
         )
     }
 }
@@ -620,7 +620,7 @@ private fun StampPreview(s: AppSettings, location: LocationEngine, sensors: Sens
             .fillMaxWidth()
             .aspectRatio(3f / 2f)
             .clip(RoundedCornerShape(22.dp))
-            .background(Brush.verticalGradient(listOf(Color(0xFF7CC6E0), Color(0xFF3E8DB0), Color(0xFF1F4E63))))
+            .background(Brush.verticalGradient(listOf(Color(0xFFF7C46C), Color(0xFFD9774A), Color(0xFF4A2632))))
     ) {
         // A simple landscape so the preview reads as "a photo".
         Canvas(Modifier.fillMaxSize()) {
@@ -635,7 +635,7 @@ private fun StampPreview(s: AppSettings, location: LocationEngine, sensors: Sens
                 lineTo(0f, size.height)
                 close()
             }
-            drawPath(far, Color(0xFF2B6A80))
+            drawPath(far, Color(0xFF8A4448))
             val near = Path().apply {
                 moveTo(0f, size.height * .78f)
                 lineTo(size.width * .35f, size.height * .64f)
@@ -645,7 +645,7 @@ private fun StampPreview(s: AppSettings, location: LocationEngine, sensors: Sens
                 lineTo(0f, size.height)
                 close()
             }
-            drawPath(near, Color(0xFF173E4E))
+            drawPath(near, Color(0xFF3A2029))
         }
         bitmap?.let {
             Image(

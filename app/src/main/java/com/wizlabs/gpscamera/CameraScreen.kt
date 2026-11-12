@@ -125,6 +125,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
@@ -198,7 +208,7 @@ private fun gpsColor(fix: GpsFix?, hasLocation: Boolean): Color = when {
     !hasLocation -> WizBad
     fix == null -> WizWarn
     fix.isMock -> WizBad
-    fix.ageSeconds() <= 10 -> WizTeal
+    fix.ageSeconds() <= 10 -> WizGood
     fix.ageSeconds() <= 60 -> WizWarn
     else -> WizBad
 }
@@ -251,11 +261,23 @@ fun CameraScreen(
     var focusPoint by remember { mutableStateOf<Offset?>(null) }
     var showNoteDialog by remember { mutableStateOf(false) }
     var showStampSheet by remember { mutableStateOf(false) }
-    var blink by remember { mutableStateOf(false) }
     var overlay by remember { mutableStateOf<Bitmap?>(null) }
     var lastThumb by remember { mutableStateOf<Bitmap?>(null) }
     var thumbVersion by remember { mutableIntStateOf(0) }
     val thumbScale = remember { Animatable(1f) }
+    // Motion: decorative art runs on a ≤30 fps clock that stops while capturing or unfocused.
+    val motion = rememberMotionAllowed()
+    // Only the "searching" GPS glyph reads this clock, so it stops once a fresh fix is locked.
+    val gpsLocked = location.fix.let { f -> hasLocation && f != null && !f.isMock && f.ageSeconds() <= 10 }
+    val decor = rememberThrottledClock(running = motion && !busy && !gpsLocked, fps = 15)
+    var captureKey by remember { mutableIntStateOf(0) }
+    val flash = remember { Animatable(0f) }
+    val fly = remember { Animatable(1f) }
+    var flyBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var thumbBounds by remember { mutableStateOf(Rect.Zero) }
+    var previewBounds by remember { mutableStateOf(Rect.Zero) }
+    val stampIn = remember { Animatable(1f) }
+    val lastLook = remember { arrayOfNulls<Any>(1) }
     val providerHolder = remember { arrayOfNulls<ProcessCameraProvider>(1) }
     val logo = remember(settings.logoVersion) { LogoStore.load(context) }
 
@@ -310,7 +332,15 @@ fun CameraScreen(
 
     // Last-photo thumbnail: loaded on open and after every save, with a little "pop".
     LaunchedEffect(thumbVersion) {
-        lastThumb = withContext(Dispatchers.IO) { latestThumb(context) }
+        val loaded = withContext(Dispatchers.IO) { latestThumb(context) }
+        // New photo: it flies from the viewfinder into the gallery slot, then the slot pops.
+        if (thumbVersion > 0 && loaded != null && motion && !previewBounds.isEmpty && !thumbBounds.isEmpty) {
+            flyBitmap = loaded
+            fly.snapTo(0f)
+            fly.animateTo(1f, tween(520, easing = FastOutSlowInEasing))
+            flyBitmap = null
+        }
+        lastThumb = loaded
         if (thumbVersion > 0) {
             thumbScale.snapTo(0.55f)
             thumbScale.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow))
@@ -465,10 +495,10 @@ fun CameraScreen(
                     val mapCopy = snapshotMap(mapView, null)
                     if (s.vibrate) Haptics.shutter(context)
                     if (s.shutterSound) sound.play(MediaActionSound.SHUTTER_CLICK)
+                    captureKey++
                     launch {
-                        blink = true
-                        delay(110)
-                        blink = false
+                        flash.snapTo(.85f)
+                        flash.animateTo(0f, tween(if (motion) 280 else 60))
                     }
                     val res = suspendCancellableCoroutine<Result<PhotoPipeline.Saved>> { c ->
                         val front = lens == CameraSelector.LENS_FACING_FRONT
@@ -542,9 +572,10 @@ fun CameraScreen(
                     .padding(top = if (portrait) topInset + 62.dp else 0.dp)
                     .then(if (portrait) Modifier.fillMaxWidth() else Modifier.fillMaxHeight())
                     .aspectRatio(ratio, matchHeightConstraintsFirst = !portrait)
+                    .onGloballyPositioned { previewBounds = it.boundsInRoot() }
                     .clip(RoundedCornerShape(if (portrait) 22.dp else 0.dp))
                     .clipToBounds()
-                    .background(Color(0xFF0B0F12))
+                    .background(Color(0xFF0B0D10))
             ) {
                 if (hasCamera) {
                     AndroidView(
@@ -606,6 +637,16 @@ fun CameraScreen(
                                 StampRenderer.draw(android.graphics.Canvas(target), target.width, target.height, data, settings, mapForDraw, logo)
                             }
                             overlay = target
+                            // Slide the stamp in when its look changes (not on every settings edit).
+                            val look = listOf(settings.template, settings.position, settings.style, logo)
+                            if (lastLook[0] != look) {
+                                val first = lastLook[0] == null
+                                lastLook[0] = look
+                                if (motion && !first) {
+                                    stampIn.snapTo(0f)
+                                    launch { stampIn.animateTo(1f, tween(420, easing = WizMotion.Emphasized)) }
+                                }
+                            }
                             delay(1000)
                         }
                     }
@@ -614,8 +655,17 @@ fun CameraScreen(
                         Image(
                             bitmap = it.asImageBitmap(),
                             contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.FillBounds
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier.fillMaxSize().graphicsLayer {
+                                val v = stampIn.value
+                                alpha = v
+                                val dir = when (settings.position) {
+                                    StampPosition.TOP -> -1f
+                                    else -> 1f
+                                }
+                                if (settings.position == StampPosition.LEFT) translationX = -(1f - v) * 48.dp.toPx()
+                                else translationY = dir * (1f - v) * 48.dp.toPx()
+                            }
                         )
                     }
                 }
@@ -688,7 +738,8 @@ fun CameraScreen(
                     hasLocation = hasLocation,
                     address = location.address,
                     tick = tick,
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
+                    clock = decor,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp).enterRise(1),
                     onClick = {
                         if (hasLocation) {
                             val f = location.fix
@@ -732,7 +783,7 @@ fun CameraScreen(
                                 }
                             },
                             valueRange = range.lower.toFloat()..range.upper.toFloat(),
-                            colors = SliderDefaults.colors(thumbColor = WizTeal, activeTrackColor = WizTeal),
+                            colors = SliderDefaults.colors(thumbColor = WizAccent, activeTrackColor = WizAccent),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -745,19 +796,14 @@ fun CameraScreen(
                         Modifier
                             .align(Alignment.TopEnd)
                             .padding(top = 54.dp, end = 12.dp)
+                            .enterRise(2)
                             .background(WizGlass, RoundedCornerShape(50))
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                            .padding(start = 4.dp, end = 10.dp, top = 3.dp, bottom = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Filled.Navigation,
-                            contentDescription = null,
-                            tint = WizTeal,
-                            // The arrow points to north on screen.
-                            modifier = Modifier.size(13.dp).rotate(-trueHeading)
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        Text(StampFormat.heading(trueHeading), color = Color.White, style = MaterialTheme.typography.labelSmall)
+                        CompassRose(heading = trueHeading)
+                        Spacer(Modifier.width(6.dp))
+                        Text(StampFormat.heading(trueHeading), color = Color.White, style = MaterialTheme.typography.labelSmall, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                     }
                 }
 
@@ -772,7 +818,7 @@ fun CameraScreen(
                         color = Color.White,
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier
-                            .background(Color(0xD9091923), RoundedCornerShape(14.dp))
+                            .background(Color(0xD90B0D10), RoundedCornerShape(14.dp))
                             .padding(horizontal = 14.dp, vertical = 9.dp)
                     )
                 }
@@ -785,7 +831,7 @@ fun CameraScreen(
                         fontSize = 22.sp,
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .background(Color(0x99091923), RoundedCornerShape(16.dp))
+                            .background(Color(0x990B0D10), RoundedCornerShape(16.dp))
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
@@ -794,7 +840,15 @@ fun CameraScreen(
                     CountdownBadge(countdown, Modifier.align(Alignment.Center))
                 }
 
-                if (blink) Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = .6f)))
+                ViewfinderCorners(appearKey = Triple(lens, settings.aspect, hasCamera))
+
+                // Capture flash: fades out in the draw phase, nothing drawn when idle.
+                Spacer(
+                    Modifier.fillMaxSize().drawBehind {
+                        val a = flash.value
+                        if (a > 0.01f) drawRect(Color.White.copy(alpha = a))
+                    }
+                )
             }
 
             // ---- Top bar: quick toggles ---------------------------------------------------------
@@ -804,7 +858,8 @@ fun CameraScreen(
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                    .padding(horizontal = 14.dp, vertical = 9.dp)
+                    .enterRise(0, rise = -18f),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -878,7 +933,7 @@ fun CameraScreen(
                     .padding(top = 26.dp, bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                ZoomPresets(camera = camera, zoomRatio = zoomRatio, onSelect = { setZoom(it) })
+                Box(Modifier.enterRise(2)) { ZoomPresets(camera = camera, zoomRatio = zoomRatio, onSelect = { setZoom(it) }) }
                 Spacer(Modifier.height(14.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -887,20 +942,21 @@ fun CameraScreen(
                         icon = Icons.Filled.Folder,
                         active = activeProject != null,
                         onClick = { showProjectPicker = true },
-                        modifier = Modifier.widthIn(max = 120.dp)
+                        modifier = Modifier.widthIn(max = 120.dp).enterRise(3)
                     )
                     GlassPill(
                         text = if (settings.note.isBlank()) "Add note" else settings.note,
                         icon = Icons.Filled.Edit,
                         active = settings.note.isNotBlank(),
                         onClick = { showNoteDialog = true },
-                        modifier = Modifier.widthIn(max = 130.dp)
+                        modifier = Modifier.widthIn(max = 130.dp).enterRise(4)
                     )
                     GlassPill(
                         text = settings.template.label,
                         icon = Icons.Filled.Layers,
-                        onClick = { showStampSheet = true }
-                    )
+                        onClick = { showStampSheet = true },
+                        modifier = Modifier.enterRise(5)
+                        )
                 }
                 Spacer(Modifier.height(18.dp))
 
@@ -913,7 +969,11 @@ fun CameraScreen(
                     Box(
                         Modifier
                             .size(54.dp)
-                            .scale(thumbScale.value)
+                            .onGloballyPositioned { thumbBounds = it.boundsInRoot() }
+                            .graphicsLayer {
+                                scaleX = thumbScale.value
+                                scaleY = thumbScale.value
+                            }
                             .clip(RoundedCornerShape(16.dp))
                             .background(WizPanel)
                             .border(2.dp, Color.White.copy(alpha = .85f), RoundedCornerShape(16.dp))
@@ -937,6 +997,7 @@ fun CameraScreen(
                         ready = !busy && imageCapture != null,
                         busy = busy && countdown == 0,
                         burst = settings.burstCount,
+                        captureKey = captureKey,
                         onClick = shoot
                     )
 
@@ -958,6 +1019,37 @@ fun CameraScreen(
                     )
                 }
             }
+        }
+
+        // The new photo flies from the viewfinder into the gallery slot along a small arc.
+        flyBitmap?.let { bmp ->
+            val tb = thumbBounds
+            val pb = previewBounds
+            val shape = RoundedCornerShape(16.dp)
+            Image(
+                bitmap = bmp.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .offset { IntOffset(tb.left.roundToInt(), tb.top.roundToInt()) }
+                    .size(with(density) { tb.width.toDp() }, with(density) { tb.height.toDp() })
+                    .graphicsLayer {
+                        val e = fly.value
+                        val arc = kotlin.math.sin(e * Math.PI).toFloat()
+                        val startW = pb.width * 0.6f
+                        val s0 = startW / tb.width
+                        val sc = s0 + (1f - s0) * e
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        scaleX = sc
+                        scaleY = sc
+                        translationX = (pb.center.x - startW / 2f - tb.left) * (1f - e)
+                        translationY = (pb.center.y - startW / 2f - tb.top) * (1f - e) - arc * 56.dp.toPx()
+                        rotationZ = -9f * arc
+                        this.shape = shape
+                        clip = true
+                    }
+                    .border(1.5.dp, Color.White, shape)
+            )
         }
     }
 
@@ -1001,9 +1093,9 @@ fun CameraScreen(
                         placeholder = { Text("e.g. Inspection – Pump 2") },
                         shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = WizTeal,
+                            focusedBorderColor = WizAccent,
                             unfocusedBorderColor = WizLine,
-                            cursorColor = WizTeal
+                            cursorColor = WizAccent
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1094,9 +1186,9 @@ fun ProjectPickerDialog(
                         placeholder = { Text("New project") },
                         shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = WizTeal,
+                            focusedBorderColor = WizAccent,
                             unfocusedBorderColor = WizLine,
-                            cursorColor = WizTeal
+                            cursorColor = WizAccent
                         ),
                         modifier = Modifier.weight(1f)
                     )
@@ -1122,60 +1214,18 @@ private fun ProjectRow(name: String, selected: Boolean, onClick: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) WizTeal.copy(alpha = .16f) else Color.Transparent)
+            .background(if (selected) WizAccent.copy(alpha = .16f) else Color.Transparent)
             .clickable { tick(); onClick() }
             .padding(horizontal = 10.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Filled.Folder, contentDescription = null, tint = if (selected) WizTeal else WizMuted)
+        Icon(Icons.Filled.Folder, contentDescription = null, tint = if (selected) WizAccent else WizMuted)
         Spacer(Modifier.width(12.dp))
         Text(name, color = WizText, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
     }
 }
 
 // ---- Pieces ---------------------------------------------------------------------------------
-
-@Composable
-private fun ShutterButton(ready: Boolean, busy: Boolean, burst: Int, onClick: () -> Unit) {
-    val tick = rememberTick()
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val inner by animateFloatAsState(
-        if (pressed) 0.80f else 1f,
-        spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium),
-        label = "shutter"
-    )
-    Box(
-        Modifier
-            .size(84.dp)
-            .clip(CircleShape)
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                enabled = ready,
-                onClick = { tick(); onClick() }
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(Modifier.fillMaxSize().border(4.dp, Color.White, CircleShape))
-        Box(
-            Modifier
-                .size(66.dp)
-                .scale(inner)
-                .clip(CircleShape)
-                .background(if (ready || busy) Color.White else Color(0xFF7D8A94))
-        )
-        if (busy) {
-            CircularProgressIndicator(
-                modifier = Modifier.fillMaxSize(),
-                color = WizTeal,
-                strokeWidth = 4.dp
-            )
-        } else if (burst > 1) {
-            Text("×$burst", color = WizNavy, style = MaterialTheme.typography.titleSmall)
-        }
-    }
-}
 
 @Composable
 private fun FocusRing(p: Offset) {
@@ -1188,8 +1238,8 @@ private fun FocusRing(p: Offset) {
             .scale(appear.value)
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            drawCircle(WizTeal, radius = size.minDimension / 2f - 2f, style = Stroke(width = 2.5f * density))
-            drawCircle(WizTeal, radius = 3f * density)
+            drawCircle(WizAccent, radius = size.minDimension / 2f - 2f, style = Stroke(width = 2.5f * density))
+            drawCircle(WizAccent, radius = 3f * density)
         }
     }
 }
@@ -1203,8 +1253,8 @@ private fun CountdownBadge(value: Int, modifier: Modifier = Modifier) {
             .size(132.dp)
             .scale(pop.value)
             .clip(CircleShape)
-            .background(Color(0x99091923))
-            .border(2.dp, WizTeal.copy(alpha = .8f), CircleShape),
+            .background(Color(0x990B0D10))
+            .border(2.dp, WizAccent.copy(alpha = .8f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Text(value.toString(), color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Bold)
@@ -1217,19 +1267,15 @@ private fun GpsChip(
     hasLocation: Boolean,
     address: String?,
     tick: Long,
+    clock: androidx.compose.runtime.State<Float>,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     // Reading `tick` makes this recompose every second so the colour follows the fix age.
     @Suppress("UNUSED_VARIABLE") val unused = tick
     val color = gpsColor(fix, hasLocation)
-    val pulse = rememberInfiniteTransition(label = "gpsPulse")
-    val pulseAlpha by pulse.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.35f,
-        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-        label = "gpsPulseAlpha"
-    )
+    val locked = hasLocation && fix != null && !fix.isMock && fix.ageSeconds() <= 10
+    val border by animateColorAsState(color.copy(alpha = .5f), tween(400), label = "gpsBorder")
     val place = address?.lineSequence()?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }
     val text = when {
         !hasLocation -> "Location is off"
@@ -1251,24 +1297,26 @@ private fun GpsChip(
         shape = RoundedCornerShape(50),
         color = WizGlass,
         contentColor = Color.White,
-        border = BorderStroke(1.dp, color.copy(alpha = .45f)),
+        border = BorderStroke(1.dp, border),
         modifier = modifier.widthIn(max = 260.dp)
     ) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(8.dp)
-                    .alpha(if (color == WizTeal) pulseAlpha else 1f)
-                    .clip(CircleShape)
-                    .background(color)
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+        Row(Modifier.padding(start = 8.dp, end = 12.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+            GpsLockGlyph(color = color, locked = locked, clock = clock)
+            Spacer(Modifier.width(6.dp))
+            // Crossfade only when the state changes (search → lock → stale), not on every number.
+            AnimatedContent(
+                targetState = text,
+                contentKey = { locked to (fix == null) },
+                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
+                label = "gpsText"
+            ) { t ->
+                Text(
+                    t,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -1314,7 +1362,7 @@ private fun ZoomPresets(camera: Camera?, zoomRatio: Float, onSelect: (Float) -> 
             ) {
                 Text(
                     label,
-                    color = if (active) WizTeal else Color.White,
+                    color = if (active) WizAccent else Color.White,
                     fontSize = if (active) 13.sp else 12.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -1376,7 +1424,7 @@ private fun StampSheet(settings: AppSettings, repo: SettingsRepo, onMore: () -> 
         Spacer(Modifier.height(18.dp))
         TextButton(
             onClick = onMore,
-            colors = ButtonDefaults.textButtonColors(contentColor = WizTeal),
+            colors = ButtonDefaults.textButtonColors(contentColor = WizAccent),
             modifier = Modifier.align(Alignment.End)
         ) {
             Text("All stamp settings")

@@ -7,7 +7,12 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -98,7 +103,17 @@ private fun WizApp() {
         } else {
             // The app stays closed until precise location is allowed, GPS is on and a fresh fix exists.
             GpsGate(location) {
-                Crossfade(targetState = screen, animationSpec = tween(220), label = "screen") { current ->
+                // Camera is "home": other screens slide in from the right and back out to it.
+                AnimatedContent(
+                    targetState = screen,
+                    transitionSpec = {
+                        val forward = targetState != Screen.CAMERA
+                        val dir = if (forward) 1 else -1
+                        (slideInHorizontally(tween(320, easing = WizMotion.Emphasized)) { dir * it / 5 } + fadeIn(tween(240))) togetherWith
+                            (slideOutHorizontally(tween(260)) { -dir * it / 8 } + fadeOut(tween(180)))
+                    },
+                    label = "screen"
+                ) { current ->
                     when (current) {
                         Screen.CAMERA -> CameraScreen(
                             repo = repo,

@@ -5,6 +5,13 @@ package com.wizlabs.gpscamera
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -49,26 +56,26 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ---- Brand palette ---------------------------------------------------------------------------
-val WizNavy = Color(0xFF07131C)      // app background
-val WizBar = Color(0xFF050D14)       // deepest surface (camera chrome)
-val WizPanel = Color(0xFF0F1F2A)     // cards
-val WizPanelHi = Color(0xFF162B38)   // raised card / pressed
+val WizNavy = Color(0xFF0B0D10)      // app background (Wiz black)
+val WizBar = Color(0xFF07080A)       // deepest surface (camera chrome)
+val WizPanel = Color(0xFF14171C)     // cards
+val WizPanelHi = Color(0xFF1F242C)   // raised card / pressed
 val WizLine = Color(0x1FFFFFFF)      // hairlines
-val WizTeal = Color(0xFF5FE3EE)      // primary accent
-val WizTealDeep = Color(0xFF1FB5C4)
-val WizText = Color(0xFFF2F7FA)
-val WizMuted = Color(0xFF8FA3B0)
-val WizGood = Color(0xFF4ADE80)
-val WizWarn = Color(0xFFFBBF24)
-val WizBad = Color(0xFFF87171)
-val WizGlass = Color(0x8C0A161F)     // translucent control background over the preview
+val WizAccent = Color(0xFFFFC400)    // Wiz yellow, primary accent
+val WizAccentDeep = Color(0xFFE0A800)
+val WizText = Color(0xFFF4F5F7)
+val WizMuted = Color(0xFF8B93A1)
+val WizGood = Color(0xFF2BD97C)
+val WizWarn = Color(0xFFFF9F1C)
+val WizBad = Color(0xFFFF5A4E)
+val WizGlass = Color(0x990B0D10)     // translucent control background over the preview
 
 private val WizColors = darkColorScheme(
-    primary = WizTeal,
+    primary = WizAccent,
     onPrimary = WizNavy,
-    primaryContainer = WizTealDeep,
+    primaryContainer = WizAccentDeep,
     onPrimaryContainer = Color.White,
-    secondary = WizTeal,
+    secondary = WizAccent,
     background = WizNavy,
     onBackground = WizText,
     surface = WizPanel,
@@ -131,7 +138,7 @@ fun GlassIconButton(
     badge: String? = null
 ) {
     val tick = rememberTick()
-    val bg by animateColorAsState(if (active) WizTeal else WizGlass, tween(180), label = "glassBg")
+    val bg by animateColorAsState(if (active) WizAccent else WizGlass, tween(180), label = "glassBg")
     val fg by animateColorAsState(
         when {
             !enabled -> Color.White.copy(alpha = .35f)
@@ -140,6 +147,7 @@ fun GlassIconButton(
         },
         tween(180), label = "glassFg"
     )
+    val interaction = remember { MutableInteractionSource() }
     Surface(
         onClick = { tick(); onClick() },
         enabled = enabled,
@@ -147,14 +155,15 @@ fun GlassIconButton(
         color = bg,
         contentColor = fg,
         border = if (active) null else BorderStroke(1.dp, Color.White.copy(alpha = .10f)),
-        modifier = modifier.size(size)
+        interactionSource = interaction,
+        modifier = modifier.pressScale(interaction).size(size)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(iconSize))
             if (badge != null) {
                 Text(
                     badge,
-                    color = if (active) WizNavy else WizTeal,
+                    color = if (active) WizNavy else WizAccent,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(end = 5.dp, bottom = 4.dp)
@@ -175,13 +184,17 @@ fun GlassPill(
     dotColor: Color? = null
 ) {
     val tick = rememberTick()
+    val interaction = remember { MutableInteractionSource() }
+    val bg by animateColorAsState(if (active) WizAccent else WizGlass, tween(180), label = "pillBg")
+    val fg by animateColorAsState(if (active) WizNavy else Color.White, tween(180), label = "pillFg")
     Surface(
         onClick = { tick(); onClick() },
         shape = RoundedCornerShape(50),
-        color = if (active) WizTeal else WizGlass,
-        contentColor = if (active) WizNavy else Color.White,
+        color = bg,
+        contentColor = fg,
         border = if (active) null else BorderStroke(1.dp, Color.White.copy(alpha = .10f)),
-        modifier = modifier
+        interactionSource = interaction,
+        modifier = modifier.pressScale(interaction, 0.94f)
     ) {
         Row(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -209,12 +222,12 @@ fun SectionTitle(text: String, icon: ImageVector? = null) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, tint = WizTeal, modifier = Modifier.size(16.dp))
+            Icon(icon, contentDescription = null, tint = WizAccent, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(8.dp))
         }
         Text(
             text.uppercase(),
-            color = WizTeal,
+            color = WizAccent,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold
         )
@@ -226,6 +239,7 @@ fun SettingsCard(content: @Composable () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
+            .enterRise(0)
             .clip(RoundedCornerShape(20.dp))
             .background(WizPanel)
             .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -239,7 +253,7 @@ fun CardDivider() {
 
 /** Small rounded square holding an icon, used at the start of settings rows. */
 @Composable
-fun IconTile(icon: ImageVector, tint: Color = WizTeal) {
+fun IconTile(icon: ImageVector, tint: Color = WizAccent) {
     Box(
         Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(tint.copy(alpha = .14f)),
         contentAlignment = Alignment.Center
@@ -281,7 +295,7 @@ fun SwitchRow(
             onCheckedChange = null,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = WizNavy,
-                checkedTrackColor = WizTeal,
+                checkedTrackColor = WizAccent,
                 uncheckedThumbColor = WizMuted,
                 uncheckedTrackColor = WizPanelHi,
                 uncheckedBorderColor = WizLine
@@ -327,21 +341,43 @@ fun <T> ChipRow(options: List<Pair<String, T>>, selected: T, onSelect: (T) -> Un
 @Composable
 fun PillChip(label: String, selected: Boolean, onClick: () -> Unit) {
     val tick = rememberTick()
-    val bg by animateColorAsState(if (selected) WizTeal else WizPanelHi, tween(160), label = "chipBg")
+    val bg by animateColorAsState(if (selected) WizAccent else WizPanelHi, tween(160), label = "chipBg")
     val fg by animateColorAsState(if (selected) WizNavy else WizText, tween(160), label = "chipFg")
-    val s by animateFloatAsState(if (selected) 1f else .97f, tween(160), label = "chipScale")
+    val interaction = remember { MutableInteractionSource() }
+    // Selection pops a check in with a little overshoot.
+    val check by animateFloatAsState(
+        if (selected) 1f else 0f,
+        spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow),
+        label = "chipCheck"
+    )
     Surface(
         onClick = { tick(); onClick() },
         shape = RoundedCornerShape(50),
         color = bg,
         contentColor = fg,
         border = if (selected) null else BorderStroke(1.dp, WizLine),
-        modifier = Modifier.scale(s)
+        interactionSource = interaction,
+        modifier = Modifier.pressScale(interaction, 0.93f)
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
-        )
+        Row(
+            Modifier.padding(start = if (selected) 10.dp else 14.dp, end = 14.dp, top = 9.dp, bottom = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (selected) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .graphicsLayer {
+                            scaleX = check
+                            scaleY = check
+                            alpha = check.coerceIn(0f, 1f)
+                        }
+                )
+                Spacer(Modifier.width(4.dp))
+            }
+            Text(label, style = MaterialTheme.typography.labelLarge)
+        }
     }
 }

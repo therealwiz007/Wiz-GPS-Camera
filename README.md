@@ -4,9 +4,21 @@ Wiz Labs Android GPS camera starter project.
 
 ## Identity
 - Application ID: `com.wizlabs.gpscamera`
-- Version: 2.0.0 (versionCode 6)
+- Version: 2.1.0 (versionCode 7)
 - Minimum Android: 10 / API 29
 - Compile / target SDK: 36
+
+## New in 2.1 — Wiz look and motion
+
+- Wiz black-and-yellow theme across every screen, new launcher icon (drawn in `tools/StoreArt.java`)
+- Camera: GPS lock glyph (sonar rings while searching, reticle when locked), compass rose, viewfinder corners,
+  shutter press + ring burst, capture flash, the new photo flies into the gallery slot, stamp slides in on style change
+- GPS gate: satellite "locking on" hero; gallery empty-state illustration; sliding screen transitions; chips pop a check
+- Performance: decorative motion runs on a throttled clock (≤30 fps, 15 fps for the GPS glyph) read only in the draw
+  phase; it stops while capturing, when GPS is locked, when the window is unfocused, under Battery Saver, or with
+  animations off. Measured on the emulator with the preview running and live GPS: 8–16 % CPU, ~137 MB PSS.
+- Store listing and art: `fastlane/metadata/android/en-US` (title, descriptions, changelog, icon, feature graphic,
+  7 framed screenshots), also copied to `store-assets/`.
 
 ## New in 2.0
 
