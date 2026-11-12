@@ -1,6 +1,6 @@
 Wiz GPS Camera is a GPS map camera that stamps every photo with where and when it was taken: the street address, a live map, latitude and longitude, and the date and time. Use it as proof of a site visit, an inspection, a delivery or work done.
 
-📍 LOCATION STAMP ON EVERY PHOTO
+LOCATION STAMP ON EVERY PHOTO
 • Full address and place name, added automatically
 • Small live map with a pin, printed right on the photo
 • Latitude and longitude in decimal, DMS, UTM or MGRS
@@ -8,26 +8,26 @@ Wiz GPS Camera is a GPS map camera that stamps every photo with where and when i
 • Optional extras: altitude, GPS accuracy, speed, compass heading, Plus Code, weather and your own logo
 • Add a note or quick tags such as Before, After or Damage
 
-🛡️ PHOTOS YOU CAN TRUST
+PHOTOS YOU CAN TRUST
 • The camera opens only after a fresh, precise GPS fix
 • Mock (fake) GPS detection: flag it on the photo, or block the shot
 • Time is checked against network time, so a wrong phone clock can't change it
 • Each photo gets a unique ID, and the gallery shows whether a photo was edited after it was taken
 • GPS coordinates are also written to the photo's EXIF data
 
-📁 PROJECTS AND REPORTS FOR FIELD WORK
+PROJECTS AND REPORTS FOR FIELD WORK
 • File photos by project: each project gets its own folder, and its name goes on the stamp
 • Search photos by note, address or ID, and filter by project
 • See every photo on a map
 • Export a PDF report, CSV spreadsheet or KML file for Google Earth, then share it
 
-🎨 STAMP STYLES
+STAMP STYLES
 • Layouts: full with map, compact, or text only
 • Styles: Glass, Classic, Light, Bold and Minimal
 • Choose the position, accent colour, card opacity and text size
 • A live preview on the camera shows exactly how the photo will look
 
-📷 A CAMERA THAT FEELS FAMILIAR
+A CAMERA THAT FEELS FAMILIAR
 • Big shutter in the middle, gallery on one side and lens switch on the other
 • Flash (off, auto, on, torch), self-timer, burst, grid, level and exposure
 • Pinch or tap to zoom, tap to focus
