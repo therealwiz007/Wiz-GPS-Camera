@@ -1,0 +1,4 @@
+Wiz GPS Camera 2.2.0:
+• Predictive back: Settings shrinks as you swipe back
+• Lighter on battery: decorative animations rest when you are not touching the phone
+• Faster start and smaller download

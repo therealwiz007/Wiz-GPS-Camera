@@ -269,7 +269,7 @@ fun CameraScreen(
     val motion = rememberMotionAllowed()
     // Only the "searching" GPS glyph reads this clock, so it stops once a fresh fix is locked.
     val gpsLocked = location.fix.let { f -> hasLocation && f != null && !f.isMock && f.ageSeconds() <= 10 }
-    val decor = rememberThrottledClock(running = motion && !busy && !gpsLocked, fps = 15)
+    val decor = rememberThrottledClock(running = motion && !busy && !gpsLocked, fps = 15, settle = false)
     var captureKey by remember { mutableIntStateOf(0) }
     val flash = remember { Animatable(0f) }
     val fly = remember { Animatable(1f) }

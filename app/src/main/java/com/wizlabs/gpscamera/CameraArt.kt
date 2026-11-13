@@ -216,7 +216,7 @@ fun ShutterButton(ready: Boolean, busy: Boolean, burst: Int, captureKey: Int, on
             burstRing.animateTo(1f, tween(560, easing = LinearOutSlowInEasing))
         }
     }
-    val spin = rememberThrottledClock(running = busy && system)
+    val spin = rememberThrottledClock(running = busy && system, settle = false)
     Box(
         Modifier
             .size(84.dp)
@@ -280,7 +280,7 @@ fun ShutterButton(ready: Boolean, busy: Boolean, burst: Int, captureKey: Int, on
 @Composable
 fun SatelliteLockHero(searching: Boolean, modifier: Modifier = Modifier) {
     val motion = rememberMotionAllowed()
-    val clock = rememberThrottledClock(running = motion)
+    val clock = rememberThrottledClock(running = motion, settle = !searching)
     Box(modifier.size(230.dp), contentAlignment = Alignment.Center) {
         Spacer(
             Modifier

@@ -11,8 +11,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- largeHeap kept: full-resolution capture + rotation briefly holds two full-size bitmaps (50 MP sensors). -->
     <application
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
         android:largeHeap="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"

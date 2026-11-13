@@ -1,5 +1,9 @@
 package com.wizlabs.gpscamera
 
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.LaunchedEffect
 import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
@@ -30,6 +34,11 @@ import org.osmdroid.config.Configuration
 private enum class Screen { CAMERA, GALLERY, SETTINGS }
 
 class MainActivity : ComponentActivity() {
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) MotionIdle.onTouch()
+        return super.dispatchTouchEvent(ev)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -40,7 +49,7 @@ class MainActivity : ComponentActivity() {
         Configuration.getInstance().userAgentValue = packageName
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
         TimeSync.init(applicationContext)
-        setContent { WizApp() }
+        setContent { ProvideWizMotion { WizApp() } }
     }
 
     // Volume up/down act as a shutter button while the camera screen is showing.
@@ -96,6 +105,9 @@ private fun WizApp() {
     }
 
     BackHandler(enabled = screen != Screen.CAMERA) { screen = Screen.CAMERA }
+    val peek = LocalBackPeek.current
+    // Once the back transition has played, drop the peek so the next visit starts full size.
+    LaunchedEffect(screen) { kotlinx.coroutines.delay(650); if (peek != null && !peek.dragging) peek.reset() }
 
     WizTheme {
         if (!repo.settings.onboardingDone) {
@@ -124,13 +136,15 @@ private fun WizApp() {
                             onSettings = { screen = Screen.SETTINGS }
                         )
                         Screen.GALLERY -> GalleryScreen(repo = repo, projects = projects, onBack = { screen = Screen.CAMERA })
-                        Screen.SETTINGS -> SettingsScreen(
-                            repo = repo,
-                            projects = projects,
-                            location = location,
-                            sensors = sensors,
-                            onBack = { screen = Screen.CAMERA }
-                        )
+                        Screen.SETTINGS -> Box(Modifier.fillMaxSize().backPeek("SETTINGS")) {
+                            SettingsScreen(
+                                repo = repo,
+                                projects = projects,
+                                location = location,
+                                sensors = sensors,
+                                onBack = { screen = Screen.CAMERA }
+                            )
+                        }
                     }
                 }
             }

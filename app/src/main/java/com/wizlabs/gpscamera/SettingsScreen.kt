@@ -159,7 +159,7 @@ fun SettingsScreen(
     var renaming by remember { mutableStateOf<Project?>(null) }
     var deleting by remember { mutableStateOf<Project?>(null) }
 
-    BackHandler(onBack = onBack)
+    WizBackHandler("SETTINGS", onBack = onBack)
 
     val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
