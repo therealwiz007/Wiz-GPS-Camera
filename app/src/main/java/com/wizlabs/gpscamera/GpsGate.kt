@@ -185,7 +185,7 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF191D24), WizNavy, WizBar)))
+            .background(Brush.verticalGradient(listOf(GpsSurface, GpsBg, GpsBg)))
     ) {
         Column(
             Modifier
@@ -212,7 +212,7 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
                     1 -> "Switch on GPS"
                     else -> "Locking on to satellites"
                 },
-                color = WizText,
+                color = GpsSilver,
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
@@ -226,7 +226,7 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
                     else -> fix?.accuracyM?.let { "Current accuracy ±${it.toInt()} m — almost there." }
                         ?: "This usually takes a few seconds."
                 },
-                color = WizMuted,
+                color = GpsMuted,
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center
             )
@@ -234,7 +234,7 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "Taking a while? Step near a window or outside for a clearer view of the sky.",
-                    color = WizWarn,
+                    color = GpsAmber,
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center
                 )
@@ -248,7 +248,7 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
                     .fillMaxWidth()
                     .enterRise(3)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(WizPanel.copy(alpha = .85f))
+                    .background(GpsSurface.copy(alpha = .85f))
                     .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
                 StepRow(1, "Precise location allowed", done = step > 0, current = step == 0)
@@ -265,7 +265,7 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
                         modifier = Modifier.fillMaxWidth().height(54.dp)
                     ) { Text("Allow location", style = MaterialTheme.typography.titleSmall) }
                     TextButton(onClick = { openAppSettings(context) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Open app settings", color = WizMuted)
+                        Text("Open app settings", color = GpsMuted)
                     }
                 }
                 1 -> {
@@ -275,13 +275,13 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
                         modifier = Modifier.fillMaxWidth().height(54.dp)
                     ) { Text("Turn on GPS", style = MaterialTheme.typography.titleSmall) }
                     TextButton(onClick = { openLocationSettings(context) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Open location settings", color = WizMuted)
+                        Text("Open location settings", color = GpsMuted)
                     }
                 }
                 else -> {
                     LinearProgressIndicator(
-                        color = WizAccent,
-                        trackColor = WizPanelHi,
+                        color = GpsTeal,
+                        trackColor = GpsSurfaceHi,
                         modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(50))
                     )
                     Spacer(Modifier.height(48.dp))
@@ -300,19 +300,19 @@ private fun StepRow(number: Int, label: String, done: Boolean, current: Boolean)
                 .clip(CircleShape)
                 .background(
                     when {
-                        done -> WizGood
-                        current -> WizAccent
-                        else -> WizPanelHi
+                        done -> GpsGood
+                        current -> GpsTeal
+                        else -> GpsSurfaceHi
                     }
                 ),
             contentAlignment = Alignment.Center
         ) {
             if (done) {
-                Icon(Icons.Filled.Check, contentDescription = null, tint = WizNavy, modifier = Modifier.size(17.dp))
+                Icon(Icons.Filled.Check, contentDescription = null, tint = GpsBg, modifier = Modifier.size(17.dp))
             } else {
                 Text(
                     number.toString(),
-                    color = if (current) WizNavy else WizMuted,
+                    color = if (current) GpsBg else GpsMuted,
                     style = MaterialTheme.typography.labelLarge
                 )
             }
@@ -320,7 +320,7 @@ private fun StepRow(number: Int, label: String, done: Boolean, current: Boolean)
         Spacer(Modifier.width(14.dp))
         Text(
             label,
-            color = if (done || current) WizText else WizMuted,
+            color = if (done || current) GpsSilver else GpsMuted,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = if (current) FontWeight.SemiBold else FontWeight.Normal
         )

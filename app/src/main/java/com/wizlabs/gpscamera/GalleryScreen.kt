@@ -305,7 +305,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
         }
     }
 
-    Box(Modifier.fillMaxSize().background(WizNavy)) {
+    Box(Modifier.fillMaxSize().background(GpsBg)) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             // Top bar
             Row(
@@ -314,61 +314,61 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
             ) {
                 if (selected.isEmpty()) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = WizText)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GpsSilver)
                     }
                     Column(Modifier.weight(1f)) {
-                        Text("Gallery", color = WizText, style = MaterialTheme.typography.titleLarge)
+                        Text("Gallery", color = GpsSilver, style = MaterialTheme.typography.titleLarge)
                         if (items.isNotEmpty()) {
                             Text(
                                 if (items.size == 1) "1 photo" else "${items.size} photos",
-                                color = WizMuted,
+                                color = GpsMuted,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
                     IconButton(onClick = { searching = !searching; if (!searching) query = "" }) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search", tint = if (searching) WizAccent else WizText)
+                        Icon(Icons.Filled.Search, contentDescription = "Search", tint = if (searching) GpsTeal else GpsSilver)
                     }
                     IconButton(onClick = { mapMode = !mapMode }) {
                         Icon(
                             if (mapMode) Icons.Filled.GridView else Icons.Filled.Map,
                             contentDescription = if (mapMode) "Grid view" else "Map view",
-                            tint = WizText
+                            tint = GpsSilver
                         )
                     }
                     Box {
                         IconButton(onClick = { exportMenu = true }) {
-                            Icon(Icons.Filled.Download, contentDescription = "Export", tint = WizText)
+                            Icon(Icons.Filled.Download, contentDescription = "Export", tint = GpsSilver)
                         }
                         ExportMenu(exportMenu, { exportMenu = false }) { kind -> runExport(kind, items) }
                     }
                 } else {
                     IconButton(onClick = { selected = emptySet() }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Clear selection", tint = WizText)
+                        Icon(Icons.Filled.Close, contentDescription = "Clear selection", tint = GpsSilver)
                     }
                     Text(
                         "${selected.size} selected",
-                        color = WizText,
+                        color = GpsSilver,
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = { selected = items.map { it.id }.toSet() }) {
-                        Icon(Icons.Filled.SelectAll, contentDescription = "Select all", tint = WizText)
+                        Icon(Icons.Filled.SelectAll, contentDescription = "Select all", tint = GpsSilver)
                     }
                     IconButton(onClick = { moveFor = items.filter { it.id in selected } }) {
-                        Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move to project", tint = WizText)
+                        Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move to project", tint = GpsSilver)
                     }
                     Box {
                         IconButton(onClick = { exportMenu = true }) {
-                            Icon(Icons.Filled.Download, contentDescription = "Export", tint = WizText)
+                            Icon(Icons.Filled.Download, contentDescription = "Export", tint = GpsSilver)
                         }
                         ExportMenu(exportMenu, { exportMenu = false }) { kind -> runExport(kind, items.filter { it.id in selected }) }
                     }
                     IconButton(onClick = { share(items.filter { it.id in selected }) }) {
-                        Icon(Icons.Filled.Share, contentDescription = "Share", tint = WizAccent)
+                        Icon(Icons.Filled.Share, contentDescription = "Share", tint = GpsTeal)
                     }
                     IconButton(onClick = { confirmDelete = items.filter { it.id in selected } }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = WizBad)
+                        Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = GpsBad)
                     }
                 }
             }
@@ -379,12 +379,12 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                     onValueChange = { query = it },
                     singleLine = true,
                     placeholder = { Text("Search notes, addresses, IDs") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = WizMuted) },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = GpsMuted) },
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = WizAccent,
-                        unfocusedBorderColor = WizLine,
-                        cursorColor = WizAccent
+                        focusedBorderColor = GpsTeal,
+                        unfocusedBorderColor = GpsLine,
+                        cursorColor = GpsTeal
                     ),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp)
                 )
@@ -407,7 +407,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                 PhotoMap(items, metas) { item -> viewer = items.indexOf(item) }
             } else if (loaded && allItems.isNotEmpty() && items.isEmpty()) {
                 Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                    Text("No photos match.", color = WizMuted, style = MaterialTheme.typography.bodyLarge)
+                    Text("No photos match.", color = GpsMuted, style = MaterialTheme.typography.bodyLarge)
                 }
             } else if (loaded && items.isEmpty()) {
                 Column(
@@ -417,11 +417,11 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                 ) {
                     EmptyGalleryArt(Modifier.enterRise(0))
                     Spacer(Modifier.height(12.dp))
-                    Text("No photos yet", color = WizText, style = MaterialTheme.typography.titleLarge, modifier = Modifier.enterRise(1))
+                    Text("No photos yet", color = GpsSilver, style = MaterialTheme.typography.titleLarge, modifier = Modifier.enterRise(1))
                     Spacer(Modifier.height(6.dp))
                     Text(
                         "Every photo you take is stamped with place and time, and shows up here.",
-                        color = WizMuted,
+                        color = GpsMuted,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
@@ -437,7 +437,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                 if (selected.isEmpty() && items.isNotEmpty()) {
                     Text(
                         "Tip: press and hold a photo to select several",
-                        color = WizMuted,
+                        color = GpsMuted,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(start = 18.dp, bottom = 4.dp)
                     )
@@ -453,7 +453,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                         item(key = "h_$label", span = { GridItemSpan(maxLineSpan) }) {
                             Text(
                                 label,
-                                color = WizText,
+                                color = GpsSilver,
                                 style = MaterialTheme.typography.titleSmall,
                                 modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 4.dp)
                             )
@@ -533,11 +533,11 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
     exporting?.let { msg ->
         AlertDialog(
             onDismissRequest = {},
-            containerColor = WizPanel,
+            containerColor = GpsSurface,
             confirmButton = {},
             text = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(color = WizAccent, modifier = Modifier.size(28.dp))
+                    CircularProgressIndicator(color = GpsTeal, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(16.dp))
                     Text(msg)
                 }
@@ -561,7 +561,7 @@ private fun movePhotos(context: Context, list: List<PhotoItem>, project: Project
 
 @Composable
 private fun ExportMenu(expanded: Boolean, onDismiss: () -> Unit, onPick: (Export.Kind) -> Unit) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss, containerColor = WizPanelHi) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss, containerColor = GpsSurfaceHi) {
         Export.Kind.values().forEach { kind ->
             DropdownMenuItem(text = { Text(kind.label) }, onClick = {
                 onDismiss()
@@ -580,7 +580,7 @@ private fun PhotoMap(items: List<PhotoItem>, metas: Map<Long, PhotoMeta?>, onOpe
     }
     if (located.isEmpty()) {
         Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-            Text("None of these photos has a location.", color = WizMuted, style = MaterialTheme.typography.bodyLarge)
+            Text("None of these photos has a location.", color = GpsMuted, style = MaterialTheme.typography.bodyLarge)
         }
         return
     }
@@ -657,7 +657,7 @@ private fun PhotoCell(item: PhotoItem, isSelected: Boolean, onClick: () -> Unit,
         Modifier
             .aspectRatio(1f)
             .clip(shape)
-            .background(if (isSelected) WizAccent.copy(alpha = .18f) else WizPanel)
+            .background(if (isSelected) GpsTeal.copy(alpha = .18f) else GpsSurface)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
         Box(Modifier.fillMaxSize().scale(inset).clip(shape)) {
@@ -678,10 +678,10 @@ private fun PhotoCell(item: PhotoItem, isSelected: Boolean, onClick: () -> Unit,
                     .padding(8.dp)
                     .size(22.dp)
                     .clip(CircleShape)
-                    .background(WizAccent),
+                    .background(GpsTeal),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.Check, contentDescription = "Selected", tint = WizNavy, modifier = Modifier.size(15.dp))
+                Icon(Icons.Filled.Check, contentDescription = "Selected", tint = GpsBg, modifier = Modifier.size(15.dp))
             }
         }
     }
@@ -690,12 +690,12 @@ private fun PhotoCell(item: PhotoItem, isSelected: Boolean, onClick: () -> Unit,
 @Composable
 private fun VerifyBadge(result: Integrity.Result?, modifier: Modifier = Modifier) {
     val (icon, tint, label) = when (result) {
-        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, WizGood, "Verified original")
-        Integrity.Result.MODIFIED, Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, WizBad, "Modified")
+        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, GpsGood, "Verified original")
+        Integrity.Result.MODIFIED, Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, GpsBad, "Modified")
         else -> return
     }
     Box(
-        modifier.size(22.dp).clip(CircleShape).background(Color(0xB30B0D10)),
+        modifier.size(22.dp).clip(CircleShape).background(Color(0xB3060B18)),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(15.dp))
@@ -706,15 +706,15 @@ private fun VerifyBadge(result: Integrity.Result?, modifier: Modifier = Modifier
 @Composable
 private fun VerifyChip(result: Integrity.Result?, modifier: Modifier = Modifier) {
     val (icon, tint, label) = when (result) {
-        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, WizGood, "Verified original")
-        Integrity.Result.MODIFIED -> Triple(Icons.Filled.Warning, WizBad, "Edited after capture")
-        Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, WizBad, "Record tampered")
+        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, GpsGood, "Verified original")
+        Integrity.Result.MODIFIED -> Triple(Icons.Filled.Warning, GpsBad, "Edited after capture")
+        Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, GpsBad, "Record tampered")
         else -> return
     }
     Row(
         modifier
             .clip(RoundedCornerShape(50))
-            .background(Color(0xB30B0D10))
+            .background(Color(0xB3060B18))
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -766,7 +766,7 @@ private fun Viewer(
             }
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 val b = bmp
-                if (b == null) CircularProgressIndicator(color = WizAccent)
+                if (b == null) CircularProgressIndicator(color = GpsTeal)
                 else Image(
                     bitmap = b.asImageBitmap(),
                     contentDescription = item.name,
@@ -815,7 +815,7 @@ private fun Viewer(
         ) {
             ViewerAction(Icons.Filled.Share, "Share") { onShare(current) }
             ViewerAction(Icons.Filled.Info, "Details") { onInfo(current) }
-            ViewerAction(Icons.Filled.Delete, "Delete", tint = WizBad) { onDelete(current) }
+            ViewerAction(Icons.Filled.Delete, "Delete", tint = GpsBad) { onDelete(current) }
         }
     }
 }
@@ -851,7 +851,7 @@ private fun InfoDialog(item: PhotoItem, s: AppSettings, projects: ProjectStore, 
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = WizPanel,
+        containerColor = GpsSurface,
         title = { Text("Photo details") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -866,7 +866,7 @@ private fun InfoDialog(item: PhotoItem, s: AppSettings, projects: ProjectStore, 
                         Text(Geo.format(meta.lat, meta.lon, s.coordFormat))
                         meta.accuracyM?.let { Text("Accuracy ±${Geo.distance(it.toDouble(), s.units)}") }
                     }
-                    if (meta.mock) Text("Mock location was detected", color = WizWarn)
+                    if (meta.mock) Text("Mock location was detected", color = GpsAmber)
                     if (meta.note.isNotBlank()) Text("Note: ${meta.note}")
                 } else if (record != null) {
                     Text("ID ${record.id}")

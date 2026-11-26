@@ -109,7 +109,7 @@ private fun WizApp() {
     // Once the back transition has played, drop the peek so the next visit starts full size.
     LaunchedEffect(screen) { kotlinx.coroutines.delay(650); if (peek != null && !peek.dragging) peek.reset() }
 
-    WizTheme {
+    GpsTheme {
         if (!repo.settings.onboardingDone) {
             Onboarding(onDone = { repo.update { it.copy(onboardingDone = true) } })
         } else {

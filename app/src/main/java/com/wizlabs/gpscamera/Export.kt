@@ -177,7 +177,7 @@ object Export {
     private fun pdf(context: Context, out: OutputStream, title: String, entries: List<Entry>, s: AppSettings) {
         val doc = PdfDocument()
         val dateFmt = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).apply { timeZone = StampFormat.zone(s) }
-        val navy = 0xFF0B0D10.toInt()
+        val navy = 0xFF060B18.toInt()
         val teal = 0xFFC79100.toInt()
         val grey = 0xFF5F6B73.toInt()
         val titleP = tp(20f, navy, true)

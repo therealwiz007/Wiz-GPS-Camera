@@ -205,12 +205,12 @@ private fun latestThumb(context: Context): Bitmap? = runCatching {
 
 /** Colour that summarises GPS health: teal = fresh, amber = ageing / searching, red = off / stale / mock. */
 private fun gpsColor(fix: GpsFix?, hasLocation: Boolean): Color = when {
-    !hasLocation -> WizBad
-    fix == null -> WizWarn
-    fix.isMock -> WizBad
-    fix.ageSeconds() <= 10 -> WizGood
-    fix.ageSeconds() <= 60 -> WizWarn
-    else -> WizBad
+    !hasLocation -> GpsBad
+    fix == null -> GpsAmber
+    fix.isMock -> GpsBad
+    fix.ageSeconds() <= 10 -> GpsGood
+    fix.ageSeconds() <= 60 -> GpsAmber
+    else -> GpsBad
 }
 
 private fun zoomLabel(z: Float): String =
@@ -575,7 +575,7 @@ fun CameraScreen(
                     .onGloballyPositioned { previewBounds = it.boundsInRoot() }
                     .clip(RoundedCornerShape(if (portrait) 22.dp else 0.dp))
                     .clipToBounds()
-                    .background(Color(0xFF0B0D10))
+                    .background(Color(0xFF060B18))
             ) {
                 if (hasCamera) {
                     AndroidView(
@@ -597,7 +597,7 @@ fun CameraScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(
                             "Wiz GPS Camera needs the camera to take geo-tagged photos.",
-                            color = WizMuted,
+                            color = GpsMuted,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(Modifier.height(18.dp))
@@ -686,7 +686,7 @@ fun CameraScreen(
                     Canvas(Modifier.fillMaxSize()) {
                         val dev = sensors.levelDeg
                         val level = abs(dev) < 1f
-                        val color = if (level) WizGood else Color.White.copy(alpha = .85f)
+                        val color = if (level) GpsGood else Color.White.copy(alpha = .85f)
                         val cy = size.height / 2f
                         drawLine(color.copy(alpha = .5f), Offset(size.width * .40f, cy), Offset(size.width * .45f, cy), 3f)
                         drawLine(color.copy(alpha = .5f), Offset(size.width * .55f, cy), Offset(size.width * .60f, cy), 3f)
@@ -763,7 +763,7 @@ fun CameraScreen(
                         Modifier
                             .align(Alignment.TopCenter)
                             .padding(top = 92.dp, start = 20.dp, end = 20.dp)
-                            .background(WizGlass, RoundedCornerShape(50))
+                            .background(GpsGlass, RoundedCornerShape(50))
                             .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -783,7 +783,7 @@ fun CameraScreen(
                                 }
                             },
                             valueRange = range.lower.toFloat()..range.upper.toFloat(),
-                            colors = SliderDefaults.colors(thumbColor = WizAccent, activeTrackColor = WizAccent),
+                            colors = SliderDefaults.colors(thumbColor = GpsTeal, activeTrackColor = GpsTeal),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -797,7 +797,7 @@ fun CameraScreen(
                             .align(Alignment.TopEnd)
                             .padding(top = 54.dp, end = 12.dp)
                             .enterRise(2)
-                            .background(WizGlass, RoundedCornerShape(50))
+                            .background(GpsGlass, RoundedCornerShape(50))
                             .padding(start = 4.dp, end = 10.dp, top = 3.dp, bottom = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -818,7 +818,7 @@ fun CameraScreen(
                         color = Color.White,
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier
-                            .background(Color(0xD90B0D10), RoundedCornerShape(14.dp))
+                            .background(Color(0xD9060B18), RoundedCornerShape(14.dp))
                             .padding(horizontal = 14.dp, vertical = 9.dp)
                     )
                 }
@@ -831,7 +831,7 @@ fun CameraScreen(
                         fontSize = 22.sp,
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .background(Color(0x990B0D10), RoundedCornerShape(16.dp))
+                            .background(Color(0x99060B18), RoundedCornerShape(16.dp))
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
@@ -975,7 +975,7 @@ fun CameraScreen(
                                 scaleY = thumbScale.value
                             }
                             .clip(RoundedCornerShape(16.dp))
-                            .background(WizPanel)
+                            .background(GpsSurface)
                             .border(2.dp, Color.White.copy(alpha = .85f), RoundedCornerShape(16.dp))
                             .clickable { tickHaptic(); onGallery() },
                         contentAlignment = Alignment.Center
@@ -1057,9 +1057,9 @@ fun CameraScreen(
         ModalBottomSheet(
             onDismissRequest = { showStampSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = WizPanel,
-            contentColor = WizText,
-            dragHandle = { BottomSheetDefaults.DragHandle(color = WizMuted) }
+            containerColor = GpsSurface,
+            contentColor = GpsSilver,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = GpsMuted) }
         ) {
             StampSheet(
                 settings = settings,
@@ -1076,13 +1076,13 @@ fun CameraScreen(
         var draft by remember { mutableStateOf(settings.note) }
         AlertDialog(
             onDismissRequest = { showNoteDialog = false },
-            containerColor = WizPanel,
+            containerColor = GpsSurface,
             title = { Text("Note on photo") },
             text = {
                 Column {
                     Text(
                         "Printed on every photo until you change it.",
-                        color = WizMuted,
+                        color = GpsMuted,
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(12.dp))
@@ -1093,15 +1093,15 @@ fun CameraScreen(
                         placeholder = { Text("e.g. Inspection – Pump 2") },
                         shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = WizAccent,
-                            unfocusedBorderColor = WizLine,
-                            cursorColor = WizAccent
+                            focusedBorderColor = GpsTeal,
+                            unfocusedBorderColor = GpsLine,
+                            cursorColor = GpsTeal
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (settings.tags.isNotEmpty()) {
                         Spacer(Modifier.height(14.dp))
-                        Text("Quick tags", color = WizMuted, style = MaterialTheme.typography.labelMedium)
+                        Text("Quick tags", color = GpsMuted, style = MaterialTheme.typography.labelMedium)
                         Spacer(Modifier.height(8.dp))
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1129,9 +1129,9 @@ fun CameraScreen(
                         TextButton(onClick = {
                             repo.update { it.copy(note = "") }
                             showNoteDialog = false
-                        }) { Text("Clear", color = WizBad) }
+                        }) { Text("Clear", color = GpsBad) }
                     }
-                    TextButton(onClick = { showNoteDialog = false }) { Text("Cancel", color = WizMuted) }
+                    TextButton(onClick = { showNoteDialog = false }) { Text("Cancel", color = GpsMuted) }
                 }
             }
         )
@@ -1163,13 +1163,13 @@ fun ProjectPickerDialog(
     var newName by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = WizPanel,
+        containerColor = GpsSurface,
         title = { Text(title) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
                     "Photos are saved in a folder named after the project, and its name is printed on the stamp.",
-                    color = WizMuted,
+                    color = GpsMuted,
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(Modifier.height(10.dp))
@@ -1186,9 +1186,9 @@ fun ProjectPickerDialog(
                         placeholder = { Text("New project") },
                         shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = WizAccent,
-                            unfocusedBorderColor = WizLine,
-                            cursorColor = WizAccent
+                            focusedBorderColor = GpsTeal,
+                            unfocusedBorderColor = GpsLine,
+                            cursorColor = GpsTeal
                         ),
                         modifier = Modifier.weight(1f)
                     )
@@ -1203,7 +1203,7 @@ fun ProjectPickerDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = WizMuted) } }
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = GpsMuted) } }
     )
 }
 
@@ -1214,14 +1214,14 @@ private fun ProjectRow(name: String, selected: Boolean, onClick: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) WizAccent.copy(alpha = .16f) else Color.Transparent)
+            .background(if (selected) GpsTeal.copy(alpha = .16f) else Color.Transparent)
             .clickable { tick(); onClick() }
             .padding(horizontal = 10.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Filled.Folder, contentDescription = null, tint = if (selected) WizAccent else WizMuted)
+        Icon(Icons.Filled.Folder, contentDescription = null, tint = if (selected) GpsTeal else GpsMuted)
         Spacer(Modifier.width(12.dp))
-        Text(name, color = WizText, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+        Text(name, color = GpsSilver, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
     }
 }
 
@@ -1238,8 +1238,8 @@ private fun FocusRing(p: Offset) {
             .scale(appear.value)
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            drawCircle(WizAccent, radius = size.minDimension / 2f - 2f, style = Stroke(width = 2.5f * density))
-            drawCircle(WizAccent, radius = 3f * density)
+            drawCircle(GpsTeal, radius = size.minDimension / 2f - 2f, style = Stroke(width = 2.5f * density))
+            drawCircle(GpsTeal, radius = 3f * density)
         }
     }
 }
@@ -1253,8 +1253,8 @@ private fun CountdownBadge(value: Int, modifier: Modifier = Modifier) {
             .size(132.dp)
             .scale(pop.value)
             .clip(CircleShape)
-            .background(Color(0x990B0D10))
-            .border(2.dp, WizAccent.copy(alpha = .8f), CircleShape),
+            .background(Color(0x99060B18))
+            .border(2.dp, GpsTeal.copy(alpha = .8f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Text(value.toString(), color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Bold)
@@ -1295,7 +1295,7 @@ private fun GpsChip(
     androidx.compose.material3.Surface(
         onClick = { tickHaptic(); onClick() },
         shape = RoundedCornerShape(50),
-        color = WizGlass,
+        color = GpsGlass,
         contentColor = Color.White,
         border = BorderStroke(1.dp, border),
         modifier = modifier.widthIn(max = 260.dp)
@@ -1341,7 +1341,7 @@ private fun ZoomPresets(camera: Camera?, zoomRatio: Float, onSelect: (Float) -> 
     Row(
         Modifier
             .clip(RoundedCornerShape(50))
-            .background(WizGlass)
+            .background(GpsGlass)
             .padding(3.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1362,7 +1362,7 @@ private fun ZoomPresets(camera: Camera?, zoomRatio: Float, onSelect: (Float) -> 
             ) {
                 Text(
                     label,
-                    color = if (active) WizAccent else Color.White,
+                    color = if (active) GpsTeal else Color.White,
                     fontSize = if (active) 13.sp else 12.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -1379,8 +1379,8 @@ private fun StampSheet(settings: AppSettings, repo: SettingsRepo, onMore: () -> 
             .navigationBarsPadding()
             .padding(start = 22.dp, end = 22.dp, bottom = 20.dp)
     ) {
-        Text("Stamp style", style = MaterialTheme.typography.titleLarge, color = WizText)
-        Text("Changes appear live on the camera.", style = MaterialTheme.typography.bodySmall, color = WizMuted)
+        Text("Stamp style", style = MaterialTheme.typography.titleLarge, color = GpsSilver)
+        Text("Changes appear live on the camera.", style = MaterialTheme.typography.bodySmall, color = GpsMuted)
         Spacer(Modifier.height(8.dp))
         OptionGroup(
             label = "Layout",
@@ -1402,7 +1402,7 @@ private fun StampSheet(settings: AppSettings, repo: SettingsRepo, onMore: () -> 
         ) { v -> repo.update { it.copy(style = v) } }
 
         Spacer(Modifier.height(6.dp))
-        Text("Show on photo", style = MaterialTheme.typography.bodyLarge, color = WizText)
+        Text("Show on photo", style = MaterialTheme.typography.bodyLarge, color = GpsSilver)
         Spacer(Modifier.height(10.dp))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1424,7 +1424,7 @@ private fun StampSheet(settings: AppSettings, repo: SettingsRepo, onMore: () -> 
         Spacer(Modifier.height(18.dp))
         TextButton(
             onClick = onMore,
-            colors = ButtonDefaults.textButtonColors(contentColor = WizAccent),
+            colors = ButtonDefaults.textButtonColors(contentColor = GpsTeal),
             modifier = Modifier.align(Alignment.End)
         ) {
             Text("All stamp settings")
