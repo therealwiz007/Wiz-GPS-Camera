@@ -718,25 +718,46 @@ fun CameraScreen(
 
                 focusPoint?.let { p -> FocusRing(p) }
 
-                // Live GPS chip, top-centre of the preview.
-                GpsChip(
-                    fix = location.fix,
-                    hasLocation = hasLocation,
-                    address = location.address,
-                    tick = tick,
-                    clock = decor,
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp).enterRise(1),
-                    onClick = {
-                        if (hasLocation) {
-                            val f = location.fix
-                            status = if (f == null) "Searching GPS…" else
-                                "GPS " + (f.accuracyM?.let { "±${it.toInt()} m · " } ?: "") + "updated ${f.ageSeconds()}s ago"
-                            location.start()
-                            location.refresh()
-                        } else {
-                            permLauncher.launch(CAMERA_PERMS)
-                        }
-                    }
+                // Quick row over the top of the preview: flash, timer, ratio, GPS chip, grid, exposure.
+                val quickBack = lens == CameraSelector.LENS_FACING_BACK
+                CameraQuickRow(
+                    settings = settings,
+                    backLens = quickBack,
+                    exposureActive = showExposure || exposureIndex != 0,
+                    onFlash = {
+                        val next = settings.flash.next()
+                        repo.update { it.copy(flash = next) }
+                        status = "Flash: ${next.label}"
+                    },
+                    onTimer = {
+                        val next = when (settings.timerSeconds) { 0 -> 3; 3 -> 10; else -> 0 }
+                        repo.update { it.copy(timerSeconds = next) }
+                        status = if (next == 0) "Timer off" else "Timer ${next}s"
+                    },
+                    onAspect = { repo.update { it.copy(aspect = it.aspect.next()) } },
+                    onGrid = { repo.update { it.copy(gridOn = !it.gridOn) } },
+                    onExposure = { showExposure = !showExposure },
+                    gpsChip = {
+                        GpsChip(
+                            fix = location.fix,
+                            hasLocation = hasLocation,
+                            address = location.address,
+                            tick = tick,
+                            clock = decor,
+                            onClick = {
+                                if (hasLocation) {
+                                    val f = location.fix
+                                    status = if (f == null) "Searching GPS…" else
+                                        "GPS " + (f.accuracyM?.let { "±${it.toInt()} m · " } ?: "") + "updated ${f.ageSeconds()}s ago"
+                                    location.start()
+                                    location.refresh()
+                                } else {
+                                    permLauncher.launch(CAMERA_PERMS)
+                                }
+                            }
+                        )
+                    },
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp).enterRise(1)
                 )
 
                 // Exposure slider, near the top so it never covers the stamp.
@@ -748,7 +769,7 @@ fun CameraScreen(
                     Row(
                         Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = 92.dp, start = 20.dp, end = 20.dp)
+                            .padding(top = 62.dp, start = 20.dp, end = 20.dp)
                             .background(GpsGlass, RoundedCornerShape(50))
                             .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -781,7 +802,7 @@ fun CameraScreen(
                     Row(
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 54.dp, end = 12.dp)
+                            .padding(top = 112.dp, end = 12.dp)
                             .enterRise(2)
                             .background(GpsGlass, RoundedCornerShape(50))
                             .padding(start = 4.dp, end = 10.dp, top = 3.dp, bottom = 3.dp),
@@ -797,7 +818,7 @@ fun CameraScreen(
                     visible = status.isNotEmpty(),
                     enter = fadeIn(tween(160)) + slideInVertically(tween(220)) { -it / 2 },
                     exit = fadeOut(tween(220)),
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 60.dp, start = 24.dp, end = 24.dp)
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 112.dp, start = 24.dp, end = 24.dp)
                 ) {
                     Text(
                         lastStatus,
@@ -837,174 +858,45 @@ fun CameraScreen(
                 )
             }
 
-            // ---- Top bar: quick toggles ---------------------------------------------------------
+            // ---- Top glass bar + bottom controls (camera/TopBar.kt, camera/ShutterBar.kt) --------
             val backLens = lens == CameraSelector.LENS_FACING_BACK
-            Row(
-                Modifier
+            CameraTopBar(
+                projectName = activeProject?.name,
+                levelOn = settings.levelOn,
+                noteSet = settings.note.isNotBlank(),
+                templateLabel = settings.template.label,
+                onProject = { showProjectPicker = true },
+                onLevel = { repo.update { it.copy(levelOn = !it.levelOn) } },
+                onNote = { showNoteDialog = true },
+                onStamp = { showStampSheet = true },
+                onSettings = onSettings,
+                modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 9.dp)
-                    .enterRise(0, rise = -18f),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                GlassIconButton(
-                    icon = when (settings.flash) {
-                        FlashChoice.OFF -> Icons.Filled.FlashOff
-                        FlashChoice.AUTO -> Icons.Filled.FlashAuto
-                        FlashChoice.ON -> Icons.Filled.FlashOn
-                        FlashChoice.TORCH -> Icons.Filled.FlashlightOn
-                    },
-                    contentDescription = "Flash ${settings.flash.label}",
-                    active = settings.flash != FlashChoice.OFF && backLens,
-                    enabled = backLens,
-                    onClick = {
-                        val next = settings.flash.next()
-                        repo.update { it.copy(flash = next) }
-                        status = "Flash: ${next.label}"
-                    }
-                )
-                GlassIconButton(
-                    icon = when (settings.timerSeconds) {
-                        3 -> Icons.Filled.Timer3
-                        10 -> Icons.Filled.Timer10
-                        else -> Icons.Filled.Timer
-                    },
-                    contentDescription = "Self-timer",
-                    active = settings.timerSeconds > 0,
-                    onClick = {
-                        val next = when (settings.timerSeconds) { 0 -> 3; 3 -> 10; else -> 0 }
-                        repo.update { it.copy(timerSeconds = next) }
-                        status = if (next == 0) "Timer off" else "Timer ${next}s"
-                    }
-                )
-                GlassPill(
-                    text = settings.aspect.label,
-                    onClick = { repo.update { it.copy(aspect = it.aspect.next()) } },
-                    modifier = Modifier.widthIn(min = 58.dp)
-                )
-                GlassIconButton(
-                    icon = if (settings.gridOn) Icons.Filled.Grid3x3 else Icons.Filled.GridOff,
-                    contentDescription = "Grid",
-                    active = settings.gridOn,
-                    onClick = { repo.update { it.copy(gridOn = !it.gridOn) } }
-                )
-                GlassIconButton(
-                    icon = Icons.Filled.Straighten,
-                    contentDescription = "Level",
-                    active = settings.levelOn,
-                    onClick = { repo.update { it.copy(levelOn = !it.levelOn) } }
-                )
-                GlassIconButton(
-                    icon = Icons.Filled.Exposure,
-                    contentDescription = "Exposure",
-                    active = showExposure || exposureIndex != 0,
-                    onClick = { showExposure = !showExposure }
-                )
-                GlassIconButton(
-                    icon = Icons.Filled.Settings,
-                    contentDescription = "Settings",
-                    onClick = onSettings
-                )
-            }
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                    .enterRise(0, rise = -18f)
+            )
 
-            // ---- Bottom controls ---------------------------------------------------------------
-            Column(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000), Color.Black)))
-                    .navigationBarsPadding()
-                    .padding(top = 26.dp, bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(Modifier.enterRise(2)) { ZoomPresets(camera = camera, zoomRatio = zoomRatio, onSelect = { setZoom(it) }) }
-                Spacer(Modifier.height(14.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    GlassPill(
-                        text = activeProject?.name ?: "Project",
-                        icon = Icons.Filled.Folder,
-                        active = activeProject != null,
-                        onClick = { showProjectPicker = true },
-                        modifier = Modifier.widthIn(max = 120.dp).enterRise(3)
-                    )
-                    GlassPill(
-                        text = if (settings.note.isBlank()) "Add note" else settings.note,
-                        icon = Icons.Filled.Edit,
-                        active = settings.note.isNotBlank(),
-                        onClick = { showNoteDialog = true },
-                        modifier = Modifier.widthIn(max = 130.dp).enterRise(4)
-                    )
-                    GlassPill(
-                        text = settings.template.label,
-                        icon = Icons.Filled.Layers,
-                        onClick = { showStampSheet = true },
-                        modifier = Modifier.enterRise(5)
-                        )
-                }
-                Spacer(Modifier.height(18.dp))
-
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 34.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Last photo → gallery
-                    Box(
-                        Modifier
-                            .size(54.dp)
-                            .onGloballyPositioned { thumbBounds = it.boundsInRoot() }
-                            .graphicsLayer {
-                                scaleX = thumbScale.value
-                                scaleY = thumbScale.value
-                            }
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(GpsSurface)
-                            .border(2.dp, Color.White.copy(alpha = .85f), RoundedCornerShape(16.dp))
-                            .clickable { tickHaptic(); onGallery() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val thumb = lastThumb
-                        if (thumb != null) {
-                            Image(
-                                bitmap = thumb.asImageBitmap(),
-                                contentDescription = "Open gallery",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(Icons.Outlined.PhotoLibrary, contentDescription = "Open gallery", tint = Color.White)
-                        }
-                    }
-
-                    ShutterButton(
-                        ready = !busy && imageCapture != null,
-                        busy = busy && countdown == 0,
-                        burst = settings.burstCount,
-                        captureKey = captureKey,
-                        onClick = shoot
-                    )
-
-                    val flipAngle by animateFloatAsState(
-                        if (backLens) 0f else 180f,
-                        spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow),
-                        label = "flip"
-                    )
-                    GlassIconButton(
-                        icon = Icons.Filled.Cameraswitch,
-                        contentDescription = "Switch camera",
-                        size = 54.dp,
-                        iconSize = 26.dp,
-                        modifier = Modifier.rotate(flipAngle),
-                        onClick = {
-                            lens = if (lens == CameraSelector.LENS_FACING_BACK) CameraSelector.LENS_FACING_FRONT
-                            else CameraSelector.LENS_FACING_BACK
-                        }
-                    )
-                }
-            }
+            CameraShutterBar(
+                camera = camera,
+                zoomRatio = zoomRatio,
+                onZoom = { setZoom(it) },
+                thumb = remember(lastThumb) { lastThumb?.asImageBitmap() },
+                thumbScale = thumbScale,
+                onThumbBounds = { thumbBounds = it },
+                onGallery = onGallery,
+                shutterReady = !busy && imageCapture != null,
+                shutterBusy = busy && countdown == 0,
+                burst = settings.burstCount,
+                captureKey = captureKey,
+                onShoot = shoot,
+                backLens = backLens,
+                onFlip = {
+                    lens = if (lens == CameraSelector.LENS_FACING_BACK) CameraSelector.LENS_FACING_FRONT
+                    else CameraSelector.LENS_FACING_BACK
+                },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
 
         // The new photo flies from the viewfinder into the gallery slot along a small arc.

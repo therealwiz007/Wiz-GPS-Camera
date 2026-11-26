@@ -1,6 +1,5 @@
 package com.wizlabs.gpscamera
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,14 +13,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,41 +32,32 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
+import com.wizlabs.gpscamera.engine.IrisBrain
+import com.wizlabs.gpscamera.engine.IrisEvent
+import com.wizlabs.gpscamera.ui.mascot.Iris
 import kotlinx.coroutines.launch
 
-private data class OnboardPage(val icon: ImageVector?, val title: String, val body: String)
+private data class OnboardPage(val title: String, val body: String)
 
 private val PAGES = listOf(
     OnboardPage(
-        null,
-        "Proof in every photo",
-        "Each photo is stamped with the address, GPS coordinates, map and network-checked time — right on the image and in its EXIF data."
+        "Proof of place and time",
+        "Every photo is stamped with the address, GPS coordinates, map and network-checked time, on the image and in its EXIF data."
     ),
     OnboardPage(
-        Icons.Filled.FolderOpen,
-        "Organise by project",
-        "File photos under a job or site, add quick tags like Before / After, and find them later on a map of every shot."
+        "Exact, fresh GPS",
+        "The camera opens only after a fresh, precise fix. You always see the accuracy and how old the fix is."
     ),
     OnboardPage(
-        Icons.Filled.PictureAsPdf,
-        "Reports in one tap",
-        "Turn a project into a PDF report, or export a spreadsheet (CSV) or Google Earth file (KML) to share with clients."
-    ),
-    OnboardPage(
-        Icons.Filled.VerifiedUser,
-        "Tamper-evident",
-        "Fake GPS apps are detected, and every saved photo gets a signed fingerprint, so edits show up as Modified."
+        "Untouched, verifiable photos",
+        "Fake GPS apps are detected, and each saved photo gets a signed fingerprint, so edits show up as Edited in the gallery."
     )
 )
 
-/** First-run walkthrough. Location and camera permissions are asked for right after it. */
+/** First-run walkthrough (3 pages). Location and camera permissions are asked for right after it. */
 @Composable
 fun Onboarding(onDone: () -> Unit) {
     val pager = rememberPagerState(pageCount = { PAGES.size })
@@ -83,44 +72,34 @@ fun Onboarding(onDone: () -> Unit) {
             .navigationBarsPadding()
     ) {
         Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
-            if (!last) TextButton(onClick = onDone) { Text("Skip", color = Color.White.copy(alpha = .7f)) }
+            if (!last) TextButton(onClick = onDone) { Text("Skip", color = GpsMuted) }
         }
         HorizontalPager(state = pager, modifier = Modifier.weight(1f)) { index ->
             val page = PAGES[index]
+            val iris = IrisBrain.react(IrisEvent.Onboarding(index))
             Column(
-                Modifier.fillMaxSize().padding(horizontal = 32.dp),
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Box(
-                    Modifier
-                        .size(132.dp)
-                        .clip(RoundedCornerShape(36.dp))
-                        .background(GpsSurface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (page.icon == null) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_launcher_foreground),
-                            contentDescription = null,
-                            modifier = Modifier.size(120.dp)
-                        )
-                    } else {
-                        Icon(page.icon, contentDescription = null, tint = GpsTeal, modifier = Modifier.size(64.dp))
-                    }
+                Iris(iris.expression, iris.action, 150.dp)
+                Spacer(Modifier.height(20.dp))
+                when (index) {
+                    0 -> SampleStampPhoto(Modifier.padding(horizontal = 4.dp))
+                    1 -> OnboardAccuracyDemo()
+                    else -> OnboardShieldDemo()
                 }
-                Spacer(Modifier.height(36.dp))
+                Spacer(Modifier.height(24.dp))
                 Text(
                     page.title,
-                    color = Color.White,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
+                    color = GpsSilver,
+                    style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center
                 )
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 Text(
                     page.body,
-                    color = Color.White.copy(alpha = .75f),
+                    color = GpsMuted,
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
@@ -136,17 +115,46 @@ fun Onboarding(onDone: () -> Unit) {
                         .padding(horizontal = 4.dp)
                         .size(width = if (i == pager.currentPage) 22.dp else 8.dp, height = 8.dp)
                         .clip(CircleShape)
-                        .background(if (i == pager.currentPage) GpsTeal else Color.White.copy(alpha = .3f))
+                        .background(if (i == pager.currentPage) GpsTeal else GpsLine)
                 )
             }
         }
         Button(
             onClick = { if (last) onDone() else scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } },
-            colors = ButtonDefaults.buttonColors(containerColor = GpsTeal, contentColor = GpsBg),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).height(52.dp)
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = GpsTeal, contentColor = GpsOnTeal),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).height(54.dp)
         ) {
-            Text(if (last) "Get started" else "Next", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(if (last) "Allow location & camera" else "Next", style = MaterialTheme.typography.titleSmall, fontSize = 16.sp)
         }
-        Spacer(Modifier.width(1.dp))
+    }
+}
+
+/** Static accuracy meter example: the same look as the GPS gate. */
+@Composable
+private fun OnboardAccuracyDemo() {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(GpsSurface).padding(18.dp)
+    ) {
+        Text("±4 m · 2 s", color = GpsTeal, style = MonoBody)
+        Spacer(Modifier.height(10.dp))
+        Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50)).background(GpsSurfaceHi)) {
+            Box(Modifier.fillMaxWidth(.92f).height(6.dp).clip(RoundedCornerShape(50)).background(GpsTeal))
+        }
+        Spacer(Modifier.height(10.dp))
+        Text("Fresh fix", color = GpsMuted, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+/** Verified badge example for page 3. */
+@Composable
+private fun OnboardShieldDemo() {
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).background(GpsSurface).padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.VerifiedUser, contentDescription = null, tint = GpsTeal, modifier = Modifier.size(26.dp))
+        Spacer(Modifier.size(10.dp))
+        Text("Verified · untouched", color = GpsSilver, style = MaterialTheme.typography.titleSmall)
     }
 }

@@ -2,6 +2,10 @@
 
 package com.wizlabs.gpscamera
 
+import com.wizlabs.gpscamera.engine.Action
+import com.wizlabs.gpscamera.engine.Expression
+import com.wizlabs.gpscamera.ui.mascot.Iris
+
 import android.app.RecoverableSecurityException
 import android.content.Context
 import android.content.Intent
@@ -415,7 +419,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    EmptyGalleryArt(Modifier.enterRise(0))
+                    Box(Modifier.enterRise(0)) { Iris(Expression.SLEEPY, Action.STILL, 140.dp) }
                     Spacer(Modifier.height(12.dp))
                     Text("No photos yet", color = GpsSilver, style = MaterialTheme.typography.titleLarge, modifier = Modifier.enterRise(1))
                     Spacer(Modifier.height(6.dp))

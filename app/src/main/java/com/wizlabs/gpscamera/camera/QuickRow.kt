@@ -2,6 +2,9 @@
 
 package com.wizlabs.gpscamera
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+
 import android.Manifest
 import android.content.Context
 import android.graphics.Bitmap
@@ -204,20 +207,20 @@ internal fun GpsChip(
     val color = gpsColor(fix, hasLocation)
     val locked = hasLocation && fix != null && !fix.isMock && fix.ageSeconds() <= 10
     val border by animateColorAsState(color.copy(alpha = .5f), tween(400), label = "gpsBorder")
-    val place = address?.lineSequence()?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }
     val text = when {
-        !hasLocation -> "Location is off"
-        fix == null -> "Searching GPS…"
-        fix.isMock -> "Mock location detected"
+        !hasLocation -> "Location off"
+        fix == null -> "Searching…"
+        fix.isMock -> "Mock location"
         else -> {
             val acc = fix.accuracyM?.let { "±${it.toInt()} m" } ?: "GPS"
-            val age = fix.ageSeconds()
-            when {
-                age > 10 -> "$acc · ${age}s ago"
-                place != null -> "$acc · $place"
-                else -> "$acc · Live"
-            }
+            "$acc · ${fix.ageSeconds()} s"
         }
+    }
+    val described = when {
+        !hasLocation -> "Location is off"
+        fix == null -> "Searching for GPS"
+        fix.isMock -> "Mock location detected"
+        else -> "Location accuracy " + (fix.accuracyM?.let { "${it.toInt()} metres, " } ?: "") + "${fix.ageSeconds()} seconds old"
     }
     val tickHaptic = rememberTick()
     androidx.compose.material3.Surface(
@@ -226,7 +229,7 @@ internal fun GpsChip(
         color = GpsGlass,
         contentColor = Color.White,
         border = BorderStroke(1.dp, border),
-        modifier = modifier.widthIn(max = 260.dp)
+        modifier = modifier.widthIn(max = 132.dp).semantics { contentDescription = described }
     ) {
         Row(Modifier.padding(start = 8.dp, end = 12.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
             GpsLockGlyph(color = color, locked = locked, clock = clock)
@@ -240,7 +243,7 @@ internal fun GpsChip(
             ) { t ->
                 Text(
                     t,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MonoSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -296,5 +299,70 @@ internal fun ZoomPresets(camera: Camera?, zoomRatio: Float, onSelect: (Float) ->
                 )
             }
         }
+    }
+}
+
+/**
+ * Quick row over the top of the preview: flash, timer, ratio, live GPS chip, grid, exposure.
+ * Same actions and behaviour as before; [gpsChip] is the existing [GpsChip] passed in as a slot.
+ */
+@Composable
+internal fun CameraQuickRow(
+    settings: AppSettings,
+    backLens: Boolean,
+    exposureActive: Boolean,
+    onFlash: () -> Unit,
+    onTimer: () -> Unit,
+    onAspect: () -> Unit,
+    onGrid: () -> Unit,
+    onExposure: () -> Unit,
+    gpsChip: @Composable () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        GlassIconButton(
+            icon = when (settings.flash) {
+                FlashChoice.OFF -> Icons.Filled.FlashOff
+                FlashChoice.AUTO -> Icons.Filled.FlashAuto
+                FlashChoice.ON -> Icons.Filled.FlashOn
+                FlashChoice.TORCH -> Icons.Filled.FlashlightOn
+            },
+            contentDescription = "Flash ${settings.flash.label}",
+            active = settings.flash != FlashChoice.OFF && backLens,
+            enabled = backLens,
+            size = 40.dp, iconSize = 20.dp,
+            onClick = onFlash
+        )
+        GlassIconButton(
+            icon = when (settings.timerSeconds) {
+                3 -> Icons.Filled.Timer3
+                10 -> Icons.Filled.Timer10
+                else -> Icons.Filled.Timer
+            },
+            contentDescription = "Self-timer",
+            active = settings.timerSeconds > 0,
+            size = 40.dp, iconSize = 20.dp,
+            onClick = onTimer
+        )
+        GlassPill(text = settings.aspect.label, onClick = onAspect, modifier = Modifier.widthIn(min = 52.dp))
+        gpsChip()
+        GlassIconButton(
+            icon = if (settings.gridOn) Icons.Filled.Grid3x3 else Icons.Filled.GridOff,
+            contentDescription = "Grid",
+            active = settings.gridOn,
+            size = 40.dp, iconSize = 20.dp,
+            onClick = onGrid
+        )
+        GlassIconButton(
+            icon = Icons.Filled.Exposure,
+            contentDescription = "Exposure",
+            active = exposureActive,
+            size = 40.dp, iconSize = 20.dp,
+            onClick = onExposure
+        )
     }
 }

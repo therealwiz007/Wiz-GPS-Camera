@@ -1,5 +1,12 @@
 package com.wizlabs.gpscamera
 
+import androidx.compose.animation.Crossfade
+import com.wizlabs.gpscamera.engine.Action
+import com.wizlabs.gpscamera.engine.Expression
+import com.wizlabs.gpscamera.engine.IrisBrain
+import com.wizlabs.gpscamera.engine.IrisEvent
+import com.wizlabs.gpscamera.ui.mascot.Iris
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -40,6 +47,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -142,13 +152,17 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
     val fix = location.fix
     val fresh = fix != null && fix.ageSeconds() <= 30 && waited >= 0
 
+    // A fresh fix shows Iris "locked" for a moment, then the gate fades to the camera (320 ms).
+    var lockedShown by remember { mutableStateOf(false) }
     LaunchedEffect(hasPermission, gpsOn, fresh) {
-        opened = if (!hasPermission || !gpsOn) false else (opened || fresh)
-    }
-
-    if (opened) {
-        content()
-        return
+        if (!hasPermission || !gpsOn) {
+            opened = false
+            lockedShown = false
+        } else if (!opened && fresh) {
+            lockedShown = true
+            delay(380)
+            opened = true
+        }
     }
 
     val turnOnGps: () -> Unit = {
@@ -182,6 +196,41 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
         )
     }
 
+    Crossfade(targetState = opened, animationSpec = tween(320), label = "gate") { isOpen ->
+        if (isOpen) {
+            content()
+        } else {
+            GateScreen(
+                step = step,
+                accuracyM = fix?.accuracyM?.toInt(),
+                waited = waited,
+                locked = lockedShown,
+                onAllow = requestPermission,
+                onAppSettings = { openAppSettings(context) },
+                onGps = turnOnGps,
+                onLocationSettings = { openLocationSettings(context) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun GateScreen(
+    step: Int,
+    accuracyM: Int?,
+    waited: Int,
+    locked: Boolean,
+    onAllow: () -> Unit,
+    onAppSettings: () -> Unit,
+    onGps: () -> Unit,
+    onLocationSettings: () -> Unit
+) {
+    val iris = when {
+        locked -> IrisBrain.react(IrisEvent.FixLocked(accuracyM ?: 0))
+        step == 0 -> IrisBrain.react(IrisEvent.WaitingPermission)
+        step == 1 -> IrisBrain.react(IrisEvent.GpsOff)
+        else -> IrisBrain.react(IrisEvent.SearchingGps(accuracyM, waited))
+    }
     Box(
         Modifier
             .fillMaxSize()
@@ -196,41 +245,44 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.weight(1f))
-            SatelliteLockHero(searching = step == 2, modifier = Modifier.enterRise(0))
-            Spacer(Modifier.height(28.dp))
+            SatelliteLockHero(searching = step == 2 && !locked, modifier = Modifier.enterRise(0)) {
+                Iris(iris.expression, iris.action, 120.dp)
+            }
+            Spacer(Modifier.height(24.dp))
             AnimatedContent(
-                targetState = step,
+                targetState = if (locked) 3 else step,
                 transitionSpec = {
                     (fadeIn(tween(260)) + slideInVertically(tween(320)) { it / 4 }) togetherWith fadeOut(tween(150))
                 },
                 label = "gateTitle",
                 modifier = Modifier.enterRise(1)
-            ) { step ->
-            Text(
-                when (step) {
-                    0 -> "Photos that prove\nwhere you were"
-                    1 -> "Switch on GPS"
-                    else -> "Locking on to satellites"
-                },
-                color = GpsSilver,
-                style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
+            ) { s ->
+                Text(
+                    when (s) {
+                        0 -> "Photos that prove\nwhere you were"
+                        1 -> "Switch on GPS"
+                        2 -> "Getting a fix"
+                        else -> "Locked"
+                    },
+                    color = GpsSilver,
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
             Spacer(Modifier.height(10.dp))
             Text(
-                when (step) {
-                    0 -> "Every photo is stamped with the exact place, map and time. Allow precise location to start."
-                    1 -> "Wiz GPS Camera needs GPS switched on to stamp your photos accurately."
-                    else -> fix?.accuracyM?.let { "Current accuracy ±${it.toInt()} m — almost there." }
-                        ?: "This usually takes a few seconds."
+                when {
+                    locked -> iris.line ?: ""
+                    step == 0 -> "Every photo is stamped with the exact place, map and time. " + (iris.line ?: "")
+                    step == 1 -> iris.line ?: ""
+                    else -> iris.line ?: ""
                 },
                 color = GpsMuted,
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center
             )
-            if (step == 2 && waited >= 20) {
+            if (step == 2 && !locked && waited >= 20) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "Taking a while? Step near a window or outside for a clearer view of the sky.",
@@ -242,51 +294,66 @@ fun GpsGate(location: LocationEngine, content: @Composable () -> Unit) {
 
             Spacer(Modifier.weight(1f))
 
-            // Three-step progress so people know how close they are.
+            // Three steps, so people know how close they are. Step 3 carries the live accuracy meter.
             Column(
                 Modifier
                     .fillMaxWidth()
                     .enterRise(3)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(GpsSurface.copy(alpha = .85f))
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(GpsSurface.copy(alpha = .9f))
                     .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
-                StepRow(1, "Precise location allowed", done = step > 0, current = step == 0)
-                StepRow(2, "GPS switched on", done = step > 1, current = step == 1)
-                StepRow(3, "Fresh GPS fix", done = false, current = step == 2)
+                StepRow(1, "Precise location", done = step > 0, current = step == 0)
+                StepRow(2, "GPS on", done = step > 1, current = step == 1)
+                StepRow(3, "Getting a fix", done = locked, current = step == 2 && !locked)
+                if (step == 2 && !locked) AccuracyMeter(accuracyM)
             }
             Spacer(Modifier.height(18.dp))
 
             when (step) {
                 0 -> {
                     Button(
-                        onClick = requestPermission,
-                        shape = RoundedCornerShape(16.dp),
+                        onClick = onAllow,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = GpsTeal, contentColor = GpsOnTeal),
                         modifier = Modifier.fillMaxWidth().height(54.dp)
                     ) { Text("Allow location", style = MaterialTheme.typography.titleSmall) }
-                    TextButton(onClick = { openAppSettings(context) }, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onAppSettings, modifier = Modifier.fillMaxWidth()) {
                         Text("Open app settings", color = GpsMuted)
                     }
                 }
                 1 -> {
                     Button(
-                        onClick = turnOnGps,
-                        shape = RoundedCornerShape(16.dp),
+                        onClick = onGps,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = GpsTeal, contentColor = GpsOnTeal),
                         modifier = Modifier.fillMaxWidth().height(54.dp)
                     ) { Text("Turn on GPS", style = MaterialTheme.typography.titleSmall) }
-                    TextButton(onClick = { openLocationSettings(context) }, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onLocationSettings, modifier = Modifier.fillMaxWidth()) {
                         Text("Open location settings", color = GpsMuted)
                     }
                 }
-                else -> {
-                    LinearProgressIndicator(
-                        color = GpsTeal,
-                        trackColor = GpsSurfaceHi,
-                        modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(50))
-                    )
-                    Spacer(Modifier.height(48.dp))
-                }
+                else -> Spacer(Modifier.height(54.dp))
             }
+        }
+    }
+}
+
+/** Live accuracy: a bar that fills as the fix tightens, with the number in mono. */
+@Composable
+private fun AccuracyMeter(accuracyM: Int?) {
+    val progress = if (accuracyM == null) 0.06f else (1f - (accuracyM - 5f) / 55f).coerceIn(0.08f, 1f)
+    val shown by androidx.compose.animation.core.animateFloatAsState(progress, tween(400), label = "acc")
+    Column(Modifier.fillMaxWidth().padding(start = 42.dp, bottom = 12.dp, end = 4.dp)) {
+        Text(
+            if (accuracyM != null) "±$accuracyM m" else "Waiting for satellites",
+            color = GpsTeal,
+            style = MonoBody,
+            modifier = Modifier.semantics { contentDescription = if (accuracyM != null) "Accuracy $accuracyM metres" else "Waiting for satellites" }
+        )
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(50)).background(GpsSurfaceHi)) {
+            Box(Modifier.fillMaxWidth(shown).height(5.dp).clip(RoundedCornerShape(50)).background(GpsTeal))
         }
     }
 }

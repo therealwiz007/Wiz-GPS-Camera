@@ -620,33 +620,8 @@ private fun StampPreview(s: AppSettings, location: LocationEngine, sensors: Sens
             .fillMaxWidth()
             .aspectRatio(3f / 2f)
             .clip(RoundedCornerShape(22.dp))
-            .background(Brush.verticalGradient(listOf(Color(0xFFF7C46C), Color(0xFFD9774A), Color(0xFF4A2632))))
     ) {
-        // A simple landscape so the preview reads as "a photo".
-        Canvas(Modifier.fillMaxSize()) {
-            drawCircle(Color(0x55FFF4C2), radius = size.minDimension * .10f, center = Offset(size.width * .78f, size.height * .22f))
-            val far = Path().apply {
-                moveTo(0f, size.height * .62f)
-                lineTo(size.width * .22f, size.height * .42f)
-                lineTo(size.width * .40f, size.height * .58f)
-                lineTo(size.width * .62f, size.height * .36f)
-                lineTo(size.width, size.height * .60f)
-                lineTo(size.width, size.height)
-                lineTo(0f, size.height)
-                close()
-            }
-            drawPath(far, Color(0xFF8A4448))
-            val near = Path().apply {
-                moveTo(0f, size.height * .78f)
-                lineTo(size.width * .35f, size.height * .64f)
-                lineTo(size.width * .70f, size.height * .76f)
-                lineTo(size.width, size.height * .68f)
-                lineTo(size.width, size.height)
-                lineTo(0f, size.height)
-                close()
-            }
-            drawPath(near, Color(0xFF3A2029))
-        }
+        SampleScene()
         bitmap?.let {
             Image(
                 bitmap = it.asImageBitmap(),
