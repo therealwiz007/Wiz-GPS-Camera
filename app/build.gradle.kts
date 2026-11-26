@@ -12,8 +12,8 @@ android {
         applicationId = "com.wizlabs.gpscamera"
         minSdk = 29
         targetSdk = 36
-        versionCode = 8
-        versionName = "2.2.0"
+        versionCode = 9
+        versionName = "3.0.0"
         // Ship only English resources (drops dozens of unused library translations).
         resourceConfigurations += listOf("en")
     }
@@ -40,7 +40,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
 }
 
 dependencies {
@@ -71,6 +71,10 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     implementation("androidx.exifinterface:exifinterface:1.4.0")
     implementation("androidx.core:core-splashscreen:1.0.1")
+
+    // Play In-App Updates (non-blocking update popup, com.wizlabs.update). No ad SDK: ads come later via AdMob.
+    implementation("com.google.android.play:app-update:2.1.0")
+    implementation("com.google.android.play:review:2.0.2")
 
     testImplementation("junit:junit:4.13.2")
 }

@@ -454,7 +454,11 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    groups.forEach { (label, dayItems) ->
+                    groups.forEachIndexed { groupIndex, (label, dayItems) ->
+                        // Native ad slot after the 1st and 5th day group. Not composed at all while ads are off.
+                        if (AdsSetup.ENABLED && items.size >= 6 && selected.isEmpty() && (groupIndex == 1 || groupIndex == 5)) {
+                            item(key = "ad_$groupIndex", span = { GridItemSpan(maxLineSpan) }) { AdSlot("gallery") }
+                        }
                         item(key = "h_$label", span = { GridItemSpan(maxLineSpan) }) {
                             Text(
                                 label,

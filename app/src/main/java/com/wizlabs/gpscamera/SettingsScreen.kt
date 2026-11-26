@@ -509,6 +509,8 @@ fun SettingsScreen(
             val version = remember {
                 runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
             }
+            AdSlot("adfree")
+            AdSlot("settings")
             SectionTitle("About", Icons.Filled.Info)
             SettingsCard {
                 Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
