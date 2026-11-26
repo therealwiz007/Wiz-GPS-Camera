@@ -4,8 +4,9 @@ Date: 2026-11-26. Branch: `redesign/wiz-gps-camera-v3.0.0`. Release commit `7ab2
 
 ## Status summary
 - Code merged into `main` (merge commit `94680f5`, pushed). CI production build succeeded.
-- Play: 9 (3.0.0) uploaded to **Closed testing – Alpha** (the track holding 2.2.0 (8)). Release saved, not submitted.
-- **NOT submitted for review.** Blocker: Data safety answer conflicts with the code (see below). Production: not touched.
+- Play: 9 (3.0.0) uploaded to **Closed testing – Alpha** (the track holding 2.2.0 (8)).
+- **SUBMITTED for review** (2026-11-26, user approved): release 9 (3.0.0) and Data safety questionnaire. Publishing overview shows "Changes in review". Google review typically within 7 days. Not verified as approved.
+- Production: not touched.
 
 ## Final version
 - applicationId `com.wizlabs.gpscamera`, versionCode **9**, versionName **3.0.0**, minSdk 29, targetSdk 36, compileSdk 36 (`app/build.gradle.kts`).
@@ -49,11 +50,10 @@ Confirmed in source: `AdsSetup.ENABLED = false`; `engine/IrisBrain.kt`; `ui/masc
 - Live URL returned HTTP 200 before the merge. A Pages rebuild was started by the merge; the new text is not verified live yet.
 - **Open item:** contact email is still the placeholder `privacy@wizlabs.app`, and a "Release note" paragraph still asks to replace it before publishing. Needs the user to confirm the real address.
 
-## Data safety (DO NOT SUBMIT until resolved)
-- Current Play answer (carried from 2.2.0, last edited Nov 1, 2026): "Does your app collect or share any required user data types?" = **No**.
-- This conflicts with 3.0.0 code: coordinates go to Open-Meteo when weather is on, and the address lookup uses the platform Geocoder. Under Play's definition, transmitted location is "collected".
-- Proposed answer, from code (for user decision): Location, Approximate and Precise: collected, not shared, optional, purpose App functionality, not ephemeral, encrypted in transit. Also confirm whether Play services adds Device or other IDs.
-- Not changed or saved. Changing a legal declaration needs the user's decision.
+## Data safety (saved and submitted)
+- Was "No" (carried from 2.2.0). Changed to **Yes**, because weather lookup sends coordinates to Open-Meteo and the address lookup uses the platform Geocoder.
+- Saved answers: Location, Approximate and Precise: collected, not shared, not ephemeral, users can choose (optional), purpose App functionality. Encrypted in transit: Yes. Account creation: app does not allow account creation; login with outside accounts: No.
+- Not answered: data-deletion question (optional). Play services Device or other IDs: not declared (not verified from code).
 
 ## App content declarations (Play)
 - 10 declarations actioned (Nov 1, 2026): Health apps, Advertising ID, Financial features, Government apps, Data safety, Target audience, Content ratings, Ads, Sign-in details, plus one more. Not re-checked one by one; Data safety is the open item above. "Need attention" tab empty.
