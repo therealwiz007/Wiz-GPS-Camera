@@ -147,9 +147,9 @@ fun CompassRose(heading: Float, modifier: Modifier = Modifier) {
                             }
                         }
                         drawPath(south, Color.White.copy(alpha = .7f))
-                        drawPath(north, WizAccent)
+                        drawPath(north, GpsTeal)
                     }
-                    drawCircle(WizNavy, hub)
+                    drawCircle(GpsBg, hub)
                 }
             }
     )
@@ -178,7 +178,7 @@ fun ViewfinderCorners(appearKey: Any, modifier: Modifier = Modifier) {
                 val len = 22.dp.toPx() + (1f - v) * 14.dp.toPx()
                 val sw = 2.4.dp.toPx()
                 val glow = sin(v * PI).toFloat()
-                val c = (if (glow > .05f) WizAccent else Color.White).copy(alpha = .38f + .5f * glow)
+                val c = (if (glow > .05f) GpsTeal else Color.White).copy(alpha = .38f + .5f * glow)
                 val w = size.width
                 val h = size.height
                 fun corner(x: Float, y: Float, dx: Float, dy: Float) {
@@ -224,7 +224,7 @@ fun ShutterButton(ready: Boolean, busy: Boolean, burst: Int, captureKey: Int, on
                 val b = burstRing.value
                 if (b < 1f) {
                     drawCircle(
-                        WizAccent.copy(alpha = (1f - b) * .9f),
+                        GpsTeal.copy(alpha = (1f - b) * .9f),
                         radius = size.minDimension / 2f + b * 24.dp.toPx(),
                         style = Stroke((1f + 3f * (1f - b)) * density)
                     )
@@ -243,14 +243,15 @@ fun ShutterButton(ready: Boolean, busy: Boolean, burst: Int, captureKey: Int, on
             Modifier
                 .fillMaxSize()
                 .drawBehind {
-                    val sw = 4.dp.toPx()
-                    drawCircle(Color.White.copy(alpha = rimAlpha), size.minDimension / 2f - sw / 2f, style = Stroke(sw))
+                    val sw = 3.dp.toPx()
+                    val inset = 4.dp.toPx()
+                    drawCircle(GpsTeal.copy(alpha = rimAlpha), size.minDimension / 2f - inset - sw / 2f, style = Stroke(sw))
                     if (busy) {
                         val start = if (system) (spin.value * 420f) % 360f else -90f
                         drawArc(
-                            WizAccent, start, 110f, false,
-                            topLeft = Offset(sw / 2f, sw / 2f),
-                            size = Size(size.width - sw, size.height - sw),
+                            GpsSilver, start, 110f, false,
+                            topLeft = Offset(inset + sw / 2f, inset + sw / 2f),
+                            size = Size(size.width - 2 * inset - sw, size.height - 2 * inset - sw),
                             style = Stroke(sw, cap = StrokeCap.Round)
                         )
                     }
@@ -258,16 +259,16 @@ fun ShutterButton(ready: Boolean, busy: Boolean, burst: Int, captureKey: Int, on
         )
         Box(
             Modifier
-                .size(66.dp)
+                .size(62.dp)
                 .graphicsLayer {
                     scaleX = inner
                     scaleY = inner
                 }
                 .clip(CircleShape)
-                .background(if (ready || busy) Color.White else Color(0xFF7D8A94))
+                .background(if (ready || busy) GpsSilver else GpsMuted)
         )
         if (burst > 1 && !busy) {
-            Text("×$burst", color = WizNavy, style = MaterialTheme.typography.titleSmall)
+            Text("×$burst", color = GpsBg, style = MaterialTheme.typography.titleSmall)
         }
     }
 }
@@ -278,7 +279,7 @@ fun ShutterButton(ready: Boolean, busy: Boolean, burst: Int, captureKey: Int, on
  * when motion is off.
  */
 @Composable
-fun SatelliteLockHero(searching: Boolean, modifier: Modifier = Modifier) {
+fun SatelliteLockHero(searching: Boolean, modifier: Modifier = Modifier, center: @Composable () -> Unit) {
     val motion = rememberMotionAllowed()
     val clock = rememberThrottledClock(running = motion, settle = !searching)
     Box(modifier.size(230.dp), contentAlignment = Alignment.Center) {
@@ -289,11 +290,11 @@ fun SatelliteLockHero(searching: Boolean, modifier: Modifier = Modifier) {
                     val maxR = size.minDimension / 2f
                     val center = Offset(size.width / 2f, size.height / 2f)
                     val glow = Brush.radialGradient(
-                        listOf(WizAccent.copy(alpha = .20f), WizAccent.copy(alpha = .04f), Color.Transparent),
+                        listOf(GpsTeal.copy(alpha = .20f), GpsTeal.copy(alpha = .04f), Color.Transparent),
                         center = center, radius = maxR
                     )
                     val sweep = Brush.sweepGradient(
-                        listOf(Color.Transparent, Color.Transparent, WizAccent.copy(alpha = .0f), WizAccent.copy(alpha = .30f)),
+                        listOf(Color.Transparent, Color.Transparent, GpsTeal.copy(alpha = .0f), GpsTeal.copy(alpha = .30f)),
                         center = center
                     )
                     val dash = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 6.dp.toPx()))
@@ -305,13 +306,13 @@ fun SatelliteLockHero(searching: Boolean, modifier: Modifier = Modifier) {
                     onDrawBehind {
                         val t = clock.value
                         drawCircle(glow, maxR)
-                        for (o in orbits) drawCircle(WizAccent.copy(alpha = .22f), maxR * o, style = trackStroke)
+                        for (o in orbits) drawCircle(GpsTeal.copy(alpha = .22f), maxR * o, style = trackStroke)
                         if (searching) {
                             rotate((t * 70f) % 360f) { drawCircle(sweep, maxR * .92f) }
                             for (i in 0 until 3) {
                                 val p = (t / 2.4f + i / 3f) % 1f
                                 drawCircle(
-                                    WizAccent.copy(alpha = (1f - p) * .45f),
+                                    GpsTeal.copy(alpha = (1f - p) * .45f),
                                     radius = maxR * (0.32f + 0.68f * p),
                                     style = ringStroke
                                 )
@@ -325,76 +326,17 @@ fun SatelliteLockHero(searching: Boolean, modifier: Modifier = Modifier) {
                     }
                 }
         )
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = null,
-            modifier = Modifier.size(100.dp).clip(RoundedCornerShape(28.dp))
-        )
+        center()
     }
 }
 
 private fun DrawScope.satellite(at: Offset, angle: Float, searching: Boolean) {
     val d = density
     val body = 3.4f * d
-    val c = if (searching) WizAccent else WizGood
+    val c = if (searching) GpsTeal else GpsGood
     rotate(Math.toDegrees(angle.toDouble()).toFloat() + 90f, at) {
         drawLine(c.copy(alpha = .7f), Offset(at.x - 9f * d, at.y), Offset(at.x + 9f * d, at.y), 2.6f * d)
-        drawCircle(WizNavy, body + 1.4f * d, at)
+        drawCircle(GpsBg, body + 1.4f * d, at)
         drawCircle(c, body, at)
     }
-}
-
-/** Empty-gallery illustration: a photo card with a map pin bobbing above it. */
-@Composable
-fun EmptyGalleryArt(modifier: Modifier = Modifier) {
-    val motion = rememberMotionAllowed()
-    val clock = rememberThrottledClock(running = motion, fps = 24)
-    Spacer(
-        modifier
-            .size(132.dp)
-            .drawWithCache {
-                val w = size.width
-                val h = size.height
-                val cardW = w * .74f
-                val cardH = h * .52f
-                val left = (w - cardW) / 2f
-                val top = h * .40f
-                val corner = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx())
-                val hills = Path().apply {
-                    moveTo(left + cardW * .08f, top + cardH * .86f)
-                    lineTo(left + cardW * .36f, top + cardH * .46f)
-                    lineTo(left + cardW * .52f, top + cardH * .66f)
-                    lineTo(left + cardW * .68f, top + cardH * .40f)
-                    lineTo(left + cardW * .92f, top + cardH * .86f)
-                    close()
-                }
-                val pinR = w * .11f
-                val pin = Path().apply {
-                    // Teardrop pin, tip at (0,0) so it can be translated to bob.
-                    moveTo(0f, 0f)
-                    cubicTo(-pinR * 1.25f, -pinR * 1.1f, -pinR * 1.2f, -pinR * 2.6f, 0f, -pinR * 2.6f)
-                    cubicTo(pinR * 1.2f, -pinR * 2.6f, pinR * 1.25f, -pinR * 1.1f, 0f, 0f)
-                    close()
-                }
-                val cardStroke = Stroke(1.dp.toPx())
-                onDrawBehind {
-                    val bob = sin(clock.value * 2.6f) * 4.dp.toPx()
-                    drawRoundRect(WizPanel, Offset(left, top), Size(cardW, cardH), corner)
-                    drawRoundRect(WizLine, Offset(left, top), Size(cardW, cardH), corner, style = cardStroke)
-                    drawPath(hills, WizAccent.copy(alpha = .22f))
-                    drawCircle(WizWarn.copy(alpha = .7f), cardW * .06f, Offset(left + cardW * .22f, top + cardH * .28f))
-                    val tip = Offset(w / 2f, top + cardH * .18f + bob * 0.2f - 6.dp.toPx() + bob)
-                    val shadowScale = 1f - abs(bob) / (10.dp.toPx())
-                    drawOval(
-                        Color.Black.copy(alpha = .35f),
-                        Offset(w / 2f - pinR * .7f * shadowScale, top + cardH * .14f),
-                        Size(pinR * 1.4f * shadowScale, pinR * .4f)
-                    )
-                    translate(tip.x, tip.y) {
-                        drawPath(pin, WizAccent)
-                        drawCircle(WizNavy, pinR * .42f, Offset(0f, -pinR * 1.65f))
-                    }
-                }
-            }
-    )
 }

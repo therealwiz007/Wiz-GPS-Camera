@@ -203,20 +203,6 @@ private fun latestThumb(context: Context): Bitmap? = runCatching {
     context.contentResolver.loadThumbnail(item.uri, Size(240, 240), null)
 }.getOrNull()
 
-/** Colour that summarises GPS health: teal = fresh, amber = ageing / searching, red = off / stale / mock. */
-private fun gpsColor(fix: GpsFix?, hasLocation: Boolean): Color = when {
-    !hasLocation -> WizBad
-    fix == null -> WizWarn
-    fix.isMock -> WizBad
-    fix.ageSeconds() <= 10 -> WizGood
-    fix.ageSeconds() <= 60 -> WizWarn
-    else -> WizBad
-}
-
-private fun zoomLabel(z: Float): String =
-    if (z < 0.95f || abs(z - z.toInt()) > 0.05f) String.format(Locale.US, "%.1f×", z)
-    else "${z.toInt()}×"
-
 @Composable
 fun CameraScreen(
     repo: SettingsRepo,
@@ -575,7 +561,7 @@ fun CameraScreen(
                     .onGloballyPositioned { previewBounds = it.boundsInRoot() }
                     .clip(RoundedCornerShape(if (portrait) 22.dp else 0.dp))
                     .clipToBounds()
-                    .background(Color(0xFF0B0D10))
+                    .background(Color(0xFF060B18))
             ) {
                 if (hasCamera) {
                     AndroidView(
@@ -597,7 +583,7 @@ fun CameraScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(
                             "Wiz GPS Camera needs the camera to take geo-tagged photos.",
-                            color = WizMuted,
+                            color = GpsMuted,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(Modifier.height(18.dp))
@@ -686,7 +672,7 @@ fun CameraScreen(
                     Canvas(Modifier.fillMaxSize()) {
                         val dev = sensors.levelDeg
                         val level = abs(dev) < 1f
-                        val color = if (level) WizGood else Color.White.copy(alpha = .85f)
+                        val color = if (level) GpsGood else Color.White.copy(alpha = .85f)
                         val cy = size.height / 2f
                         drawLine(color.copy(alpha = .5f), Offset(size.width * .40f, cy), Offset(size.width * .45f, cy), 3f)
                         drawLine(color.copy(alpha = .5f), Offset(size.width * .55f, cy), Offset(size.width * .60f, cy), 3f)
@@ -732,25 +718,46 @@ fun CameraScreen(
 
                 focusPoint?.let { p -> FocusRing(p) }
 
-                // Live GPS chip, top-centre of the preview.
-                GpsChip(
-                    fix = location.fix,
-                    hasLocation = hasLocation,
-                    address = location.address,
-                    tick = tick,
-                    clock = decor,
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp).enterRise(1),
-                    onClick = {
-                        if (hasLocation) {
-                            val f = location.fix
-                            status = if (f == null) "Searching GPS…" else
-                                "GPS " + (f.accuracyM?.let { "±${it.toInt()} m · " } ?: "") + "updated ${f.ageSeconds()}s ago"
-                            location.start()
-                            location.refresh()
-                        } else {
-                            permLauncher.launch(CAMERA_PERMS)
-                        }
-                    }
+                // Quick row over the top of the preview: flash, timer, ratio, GPS chip, grid, exposure.
+                val quickBack = lens == CameraSelector.LENS_FACING_BACK
+                CameraQuickRow(
+                    settings = settings,
+                    backLens = quickBack,
+                    exposureActive = showExposure || exposureIndex != 0,
+                    onFlash = {
+                        val next = settings.flash.next()
+                        repo.update { it.copy(flash = next) }
+                        status = "Flash: ${next.label}"
+                    },
+                    onTimer = {
+                        val next = when (settings.timerSeconds) { 0 -> 3; 3 -> 10; else -> 0 }
+                        repo.update { it.copy(timerSeconds = next) }
+                        status = if (next == 0) "Timer off" else "Timer ${next}s"
+                    },
+                    onAspect = { repo.update { it.copy(aspect = it.aspect.next()) } },
+                    onGrid = { repo.update { it.copy(gridOn = !it.gridOn) } },
+                    onExposure = { showExposure = !showExposure },
+                    gpsChip = {
+                        GpsChip(
+                            fix = location.fix,
+                            hasLocation = hasLocation,
+                            address = location.address,
+                            tick = tick,
+                            clock = decor,
+                            onClick = {
+                                if (hasLocation) {
+                                    val f = location.fix
+                                    status = if (f == null) "Searching GPS…" else
+                                        "GPS " + (f.accuracyM?.let { "±${it.toInt()} m · " } ?: "") + "updated ${f.ageSeconds()}s ago"
+                                    location.start()
+                                    location.refresh()
+                                } else {
+                                    permLauncher.launch(CAMERA_PERMS)
+                                }
+                            }
+                        )
+                    },
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp).enterRise(1)
                 )
 
                 // Exposure slider, near the top so it never covers the stamp.
@@ -762,8 +769,8 @@ fun CameraScreen(
                     Row(
                         Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = 92.dp, start = 20.dp, end = 20.dp)
-                            .background(WizGlass, RoundedCornerShape(50))
+                            .padding(top = 62.dp, start = 20.dp, end = 20.dp)
+                            .background(GpsGlass, RoundedCornerShape(50))
                             .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -783,7 +790,7 @@ fun CameraScreen(
                                 }
                             },
                             valueRange = range.lower.toFloat()..range.upper.toFloat(),
-                            colors = SliderDefaults.colors(thumbColor = WizAccent, activeTrackColor = WizAccent),
+                            colors = SliderDefaults.colors(thumbColor = GpsTeal, activeTrackColor = GpsTeal),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -795,9 +802,9 @@ fun CameraScreen(
                     Row(
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 54.dp, end = 12.dp)
+                            .padding(top = 112.dp, end = 12.dp)
                             .enterRise(2)
-                            .background(WizGlass, RoundedCornerShape(50))
+                            .background(GpsGlass, RoundedCornerShape(50))
                             .padding(start = 4.dp, end = 10.dp, top = 3.dp, bottom = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -811,14 +818,14 @@ fun CameraScreen(
                     visible = status.isNotEmpty(),
                     enter = fadeIn(tween(160)) + slideInVertically(tween(220)) { -it / 2 },
                     exit = fadeOut(tween(220)),
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 60.dp, start = 24.dp, end = 24.dp)
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 112.dp, start = 24.dp, end = 24.dp)
                 ) {
                     Text(
                         lastStatus,
                         color = Color.White,
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier
-                            .background(Color(0xD90B0D10), RoundedCornerShape(14.dp))
+                            .background(Color(0xD9060B18), RoundedCornerShape(14.dp))
                             .padding(horizontal = 14.dp, vertical = 9.dp)
                     )
                 }
@@ -831,7 +838,7 @@ fun CameraScreen(
                         fontSize = 22.sp,
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .background(Color(0x990B0D10), RoundedCornerShape(16.dp))
+                            .background(Color(0x99060B18), RoundedCornerShape(16.dp))
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
@@ -851,174 +858,45 @@ fun CameraScreen(
                 )
             }
 
-            // ---- Top bar: quick toggles ---------------------------------------------------------
+            // ---- Top glass bar + bottom controls (camera/TopBar.kt, camera/ShutterBar.kt) --------
             val backLens = lens == CameraSelector.LENS_FACING_BACK
-            Row(
-                Modifier
+            CameraTopBar(
+                projectName = activeProject?.name,
+                levelOn = settings.levelOn,
+                noteSet = settings.note.isNotBlank(),
+                templateLabel = settings.template.label,
+                onProject = { showProjectPicker = true },
+                onLevel = { repo.update { it.copy(levelOn = !it.levelOn) } },
+                onNote = { showNoteDialog = true },
+                onStamp = { showStampSheet = true },
+                onSettings = onSettings,
+                modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 9.dp)
-                    .enterRise(0, rise = -18f),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                GlassIconButton(
-                    icon = when (settings.flash) {
-                        FlashChoice.OFF -> Icons.Filled.FlashOff
-                        FlashChoice.AUTO -> Icons.Filled.FlashAuto
-                        FlashChoice.ON -> Icons.Filled.FlashOn
-                        FlashChoice.TORCH -> Icons.Filled.FlashlightOn
-                    },
-                    contentDescription = "Flash ${settings.flash.label}",
-                    active = settings.flash != FlashChoice.OFF && backLens,
-                    enabled = backLens,
-                    onClick = {
-                        val next = settings.flash.next()
-                        repo.update { it.copy(flash = next) }
-                        status = "Flash: ${next.label}"
-                    }
-                )
-                GlassIconButton(
-                    icon = when (settings.timerSeconds) {
-                        3 -> Icons.Filled.Timer3
-                        10 -> Icons.Filled.Timer10
-                        else -> Icons.Filled.Timer
-                    },
-                    contentDescription = "Self-timer",
-                    active = settings.timerSeconds > 0,
-                    onClick = {
-                        val next = when (settings.timerSeconds) { 0 -> 3; 3 -> 10; else -> 0 }
-                        repo.update { it.copy(timerSeconds = next) }
-                        status = if (next == 0) "Timer off" else "Timer ${next}s"
-                    }
-                )
-                GlassPill(
-                    text = settings.aspect.label,
-                    onClick = { repo.update { it.copy(aspect = it.aspect.next()) } },
-                    modifier = Modifier.widthIn(min = 58.dp)
-                )
-                GlassIconButton(
-                    icon = if (settings.gridOn) Icons.Filled.Grid3x3 else Icons.Filled.GridOff,
-                    contentDescription = "Grid",
-                    active = settings.gridOn,
-                    onClick = { repo.update { it.copy(gridOn = !it.gridOn) } }
-                )
-                GlassIconButton(
-                    icon = Icons.Filled.Straighten,
-                    contentDescription = "Level",
-                    active = settings.levelOn,
-                    onClick = { repo.update { it.copy(levelOn = !it.levelOn) } }
-                )
-                GlassIconButton(
-                    icon = Icons.Filled.Exposure,
-                    contentDescription = "Exposure",
-                    active = showExposure || exposureIndex != 0,
-                    onClick = { showExposure = !showExposure }
-                )
-                GlassIconButton(
-                    icon = Icons.Filled.Settings,
-                    contentDescription = "Settings",
-                    onClick = onSettings
-                )
-            }
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                    .enterRise(0, rise = -18f)
+            )
 
-            // ---- Bottom controls ---------------------------------------------------------------
-            Column(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000), Color.Black)))
-                    .navigationBarsPadding()
-                    .padding(top = 26.dp, bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(Modifier.enterRise(2)) { ZoomPresets(camera = camera, zoomRatio = zoomRatio, onSelect = { setZoom(it) }) }
-                Spacer(Modifier.height(14.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    GlassPill(
-                        text = activeProject?.name ?: "Project",
-                        icon = Icons.Filled.Folder,
-                        active = activeProject != null,
-                        onClick = { showProjectPicker = true },
-                        modifier = Modifier.widthIn(max = 120.dp).enterRise(3)
-                    )
-                    GlassPill(
-                        text = if (settings.note.isBlank()) "Add note" else settings.note,
-                        icon = Icons.Filled.Edit,
-                        active = settings.note.isNotBlank(),
-                        onClick = { showNoteDialog = true },
-                        modifier = Modifier.widthIn(max = 130.dp).enterRise(4)
-                    )
-                    GlassPill(
-                        text = settings.template.label,
-                        icon = Icons.Filled.Layers,
-                        onClick = { showStampSheet = true },
-                        modifier = Modifier.enterRise(5)
-                        )
-                }
-                Spacer(Modifier.height(18.dp))
-
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 34.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Last photo → gallery
-                    Box(
-                        Modifier
-                            .size(54.dp)
-                            .onGloballyPositioned { thumbBounds = it.boundsInRoot() }
-                            .graphicsLayer {
-                                scaleX = thumbScale.value
-                                scaleY = thumbScale.value
-                            }
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(WizPanel)
-                            .border(2.dp, Color.White.copy(alpha = .85f), RoundedCornerShape(16.dp))
-                            .clickable { tickHaptic(); onGallery() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val thumb = lastThumb
-                        if (thumb != null) {
-                            Image(
-                                bitmap = thumb.asImageBitmap(),
-                                contentDescription = "Open gallery",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(Icons.Outlined.PhotoLibrary, contentDescription = "Open gallery", tint = Color.White)
-                        }
-                    }
-
-                    ShutterButton(
-                        ready = !busy && imageCapture != null,
-                        busy = busy && countdown == 0,
-                        burst = settings.burstCount,
-                        captureKey = captureKey,
-                        onClick = shoot
-                    )
-
-                    val flipAngle by animateFloatAsState(
-                        if (backLens) 0f else 180f,
-                        spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow),
-                        label = "flip"
-                    )
-                    GlassIconButton(
-                        icon = Icons.Filled.Cameraswitch,
-                        contentDescription = "Switch camera",
-                        size = 54.dp,
-                        iconSize = 26.dp,
-                        modifier = Modifier.rotate(flipAngle),
-                        onClick = {
-                            lens = if (lens == CameraSelector.LENS_FACING_BACK) CameraSelector.LENS_FACING_FRONT
-                            else CameraSelector.LENS_FACING_BACK
-                        }
-                    )
-                }
-            }
+            CameraShutterBar(
+                camera = camera,
+                zoomRatio = zoomRatio,
+                onZoom = { setZoom(it) },
+                thumb = remember(lastThumb) { lastThumb?.asImageBitmap() },
+                thumbScale = thumbScale,
+                onThumbBounds = { thumbBounds = it },
+                onGallery = onGallery,
+                shutterReady = !busy && imageCapture != null,
+                shutterBusy = busy && countdown == 0,
+                burst = settings.burstCount,
+                captureKey = captureKey,
+                onShoot = shoot,
+                backLens = backLens,
+                onFlip = {
+                    lens = if (lens == CameraSelector.LENS_FACING_BACK) CameraSelector.LENS_FACING_FRONT
+                    else CameraSelector.LENS_FACING_BACK
+                },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
 
         // The new photo flies from the viewfinder into the gallery slot along a small arc.
@@ -1057,9 +935,9 @@ fun CameraScreen(
         ModalBottomSheet(
             onDismissRequest = { showStampSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = WizPanel,
-            contentColor = WizText,
-            dragHandle = { BottomSheetDefaults.DragHandle(color = WizMuted) }
+            containerColor = GpsSurface,
+            contentColor = GpsSilver,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = GpsMuted) }
         ) {
             StampSheet(
                 settings = settings,
@@ -1076,13 +954,13 @@ fun CameraScreen(
         var draft by remember { mutableStateOf(settings.note) }
         AlertDialog(
             onDismissRequest = { showNoteDialog = false },
-            containerColor = WizPanel,
+            containerColor = GpsSurface,
             title = { Text("Note on photo") },
             text = {
                 Column {
                     Text(
                         "Printed on every photo until you change it.",
-                        color = WizMuted,
+                        color = GpsMuted,
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(12.dp))
@@ -1093,15 +971,15 @@ fun CameraScreen(
                         placeholder = { Text("e.g. Inspection – Pump 2") },
                         shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = WizAccent,
-                            unfocusedBorderColor = WizLine,
-                            cursorColor = WizAccent
+                            focusedBorderColor = GpsTeal,
+                            unfocusedBorderColor = GpsLine,
+                            cursorColor = GpsTeal
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (settings.tags.isNotEmpty()) {
                         Spacer(Modifier.height(14.dp))
-                        Text("Quick tags", color = WizMuted, style = MaterialTheme.typography.labelMedium)
+                        Text("Quick tags", color = GpsMuted, style = MaterialTheme.typography.labelMedium)
                         Spacer(Modifier.height(8.dp))
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1129,9 +1007,9 @@ fun CameraScreen(
                         TextButton(onClick = {
                             repo.update { it.copy(note = "") }
                             showNoteDialog = false
-                        }) { Text("Clear", color = WizBad) }
+                        }) { Text("Clear", color = GpsBad) }
                     }
-                    TextButton(onClick = { showNoteDialog = false }) { Text("Cancel", color = WizMuted) }
+                    TextButton(onClick = { showNoteDialog = false }) { Text("Cancel", color = GpsMuted) }
                 }
             }
         )
@@ -1151,284 +1029,3 @@ fun CameraScreen(
 }
 
 /** Choose the project new photos are filed under, or create one. */
-@Composable
-fun ProjectPickerDialog(
-    projects: ProjectStore,
-    selectedId: String,
-    onSelect: (String) -> Unit,
-    onDismiss: () -> Unit,
-    title: String = "File new photos under",
-    allowNone: Boolean = true
-) {
-    var newName by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = WizPanel,
-        title = { Text(title) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text(
-                    "Photos are saved in a folder named after the project, and its name is printed on the stamp.",
-                    color = WizMuted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Spacer(Modifier.height(10.dp))
-                if (allowNone) ProjectRow("No project", selectedId.isEmpty()) { onSelect("") }
-                projects.projects.sortedByDescending { it.createdMs }.forEach { p ->
-                    ProjectRow(p.name, p.id == selectedId) { onSelect(p.id) }
-                }
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = newName,
-                        onValueChange = { newName = it.take(60) },
-                        singleLine = true,
-                        placeholder = { Text("New project") },
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = WizAccent,
-                            unfocusedBorderColor = WizLine,
-                            cursorColor = WizAccent
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    GlassIconButton(
-                        icon = Icons.Filled.Add,
-                        contentDescription = "Create project",
-                        enabled = newName.isNotBlank(),
-                        active = newName.isNotBlank(),
-                        onClick = { onSelect(projects.create(newName).id) }
-                    )
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = WizMuted) } }
-    )
-}
-
-@Composable
-private fun ProjectRow(name: String, selected: Boolean, onClick: () -> Unit) {
-    val tick = rememberTick()
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) WizAccent.copy(alpha = .16f) else Color.Transparent)
-            .clickable { tick(); onClick() }
-            .padding(horizontal = 10.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Filled.Folder, contentDescription = null, tint = if (selected) WizAccent else WizMuted)
-        Spacer(Modifier.width(12.dp))
-        Text(name, color = WizText, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
-    }
-}
-
-// ---- Pieces ---------------------------------------------------------------------------------
-
-@Composable
-private fun FocusRing(p: Offset) {
-    val appear = remember(p) { Animatable(1.5f) }
-    LaunchedEffect(p) { appear.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium)) }
-    Box(
-        Modifier
-            .offset { IntOffset((p.x - 36.dp.toPx()).toInt(), (p.y - 36.dp.toPx()).toInt()) }
-            .size(72.dp)
-            .scale(appear.value)
-    ) {
-        Canvas(Modifier.fillMaxSize()) {
-            drawCircle(WizAccent, radius = size.minDimension / 2f - 2f, style = Stroke(width = 2.5f * density))
-            drawCircle(WizAccent, radius = 3f * density)
-        }
-    }
-}
-
-@Composable
-private fun CountdownBadge(value: Int, modifier: Modifier = Modifier) {
-    val pop = remember(value) { Animatable(1.6f) }
-    LaunchedEffect(value) { pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow)) }
-    Box(
-        modifier
-            .size(132.dp)
-            .scale(pop.value)
-            .clip(CircleShape)
-            .background(Color(0x990B0D10))
-            .border(2.dp, WizAccent.copy(alpha = .8f), CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(value.toString(), color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun GpsChip(
-    fix: GpsFix?,
-    hasLocation: Boolean,
-    address: String?,
-    tick: Long,
-    clock: androidx.compose.runtime.State<Float>,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    // Reading `tick` makes this recompose every second so the colour follows the fix age.
-    @Suppress("UNUSED_VARIABLE") val unused = tick
-    val color = gpsColor(fix, hasLocation)
-    val locked = hasLocation && fix != null && !fix.isMock && fix.ageSeconds() <= 10
-    val border by animateColorAsState(color.copy(alpha = .5f), tween(400), label = "gpsBorder")
-    val place = address?.lineSequence()?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }
-    val text = when {
-        !hasLocation -> "Location is off"
-        fix == null -> "Searching GPS…"
-        fix.isMock -> "Mock location detected"
-        else -> {
-            val acc = fix.accuracyM?.let { "±${it.toInt()} m" } ?: "GPS"
-            val age = fix.ageSeconds()
-            when {
-                age > 10 -> "$acc · ${age}s ago"
-                place != null -> "$acc · $place"
-                else -> "$acc · Live"
-            }
-        }
-    }
-    val tickHaptic = rememberTick()
-    androidx.compose.material3.Surface(
-        onClick = { tickHaptic(); onClick() },
-        shape = RoundedCornerShape(50),
-        color = WizGlass,
-        contentColor = Color.White,
-        border = BorderStroke(1.dp, border),
-        modifier = modifier.widthIn(max = 260.dp)
-    ) {
-        Row(Modifier.padding(start = 8.dp, end = 12.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-            GpsLockGlyph(color = color, locked = locked, clock = clock)
-            Spacer(Modifier.width(6.dp))
-            // Crossfade only when the state changes (search → lock → stale), not on every number.
-            AnimatedContent(
-                targetState = text,
-                contentKey = { locked to (fix == null) },
-                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
-                label = "gpsText"
-            ) { t ->
-                Text(
-                    t,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ZoomPresets(camera: Camera?, zoomRatio: Float, onSelect: (Float) -> Unit) {
-    val zs = camera?.cameraInfo?.zoomState?.value
-    val minZ = zs?.minZoomRatio ?: 1f
-    val maxZ = zs?.maxZoomRatio ?: 1f
-    val presets = buildList {
-        if (minZ < 0.95f) add(minZ)
-        add(1f)
-        if (maxZ >= 2f) add(2f)
-        if (maxZ >= 5f) add(5f)
-    }
-    if (presets.size < 2) {
-        Spacer(Modifier.height(34.dp))
-        return
-    }
-    // The chip at or below the current zoom is "active"; it shows the exact value while pinching.
-    val activeIndex = presets.indexOfLast { it <= zoomRatio + 0.01f }.coerceAtLeast(0)
-    Row(
-        Modifier
-            .clip(RoundedCornerShape(50))
-            .background(WizGlass)
-            .padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        presets.forEachIndexed { i, p ->
-            val active = i == activeIndex
-            val label = if (active) zoomLabel(zoomRatio) else zoomLabel(p)
-            val scale by animateFloatAsState(if (active) 1f else 0.86f, tween(160), label = "zoomChip")
-            val tick = rememberTick()
-            Box(
-                Modifier
-                    .size(if (active) 40.dp else 34.dp)
-                    .scale(scale)
-                    .clip(CircleShape)
-                    .background(if (active) Color(0x33FFFFFF) else Color.Transparent)
-                    .clickable { tick(); onSelect(p) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    label,
-                    color = if (active) WizAccent else Color.White,
-                    fontSize = if (active) 13.sp else 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StampSheet(settings: AppSettings, repo: SettingsRepo, onMore: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(start = 22.dp, end = 22.dp, bottom = 20.dp)
-    ) {
-        Text("Stamp style", style = MaterialTheme.typography.titleLarge, color = WizText)
-        Text("Changes appear live on the camera.", style = MaterialTheme.typography.bodySmall, color = WizMuted)
-        Spacer(Modifier.height(8.dp))
-        OptionGroup(
-            label = "Layout",
-            icon = Icons.Filled.Layers,
-            options = StampTemplate.values().map { it.label to it },
-            selected = settings.template
-        ) { v -> repo.update { it.copy(template = v) } }
-        OptionGroup(
-            label = "Position",
-            icon = Icons.Filled.VerticalAlignBottom,
-            options = StampPosition.values().map { it.label to it },
-            selected = settings.position
-        ) { v -> repo.update { it.copy(position = v) } }
-        OptionGroup(
-            label = "Style",
-            icon = Icons.Filled.Palette,
-            options = StampStyle.values().map { it.label to it },
-            selected = settings.style
-        ) { v -> repo.update { it.copy(style = v) } }
-
-        Spacer(Modifier.height(6.dp))
-        Text("Show on photo", style = MaterialTheme.typography.bodyLarge, color = WizText)
-        Spacer(Modifier.height(10.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            PillChip("Map", settings.showMap) { repo.update { it.copy(showMap = !it.showMap) } }
-            PillChip("Address", settings.showAddress) { repo.update { it.copy(showAddress = !it.showAddress) } }
-            PillChip("Coordinates", settings.showCoords) { repo.update { it.copy(showCoords = !it.showCoords) } }
-            PillChip("Date & time", settings.showDateTime) { repo.update { it.copy(showDateTime = !it.showDateTime) } }
-            PillChip("Weather", settings.showWeather) { repo.update { it.copy(showWeather = !it.showWeather) } }
-            PillChip("Altitude", settings.showAltitude) { repo.update { it.copy(showAltitude = !it.showAltitude) } }
-            PillChip("Compass", settings.showHeading) { repo.update { it.copy(showHeading = !it.showHeading) } }
-            PillChip("Accuracy", settings.showAccuracy) { repo.update { it.copy(showAccuracy = !it.showAccuracy) } }
-            PillChip("Speed", settings.showSpeed) { repo.update { it.copy(showSpeed = !it.showSpeed) } }
-            PillChip("Plus code", settings.showPlusCode) { repo.update { it.copy(showPlusCode = !it.showPlusCode) } }
-            PillChip("Logo", settings.showLogo) { repo.update { it.copy(showLogo = !it.showLogo) } }
-        }
-
-        Spacer(Modifier.height(18.dp))
-        TextButton(
-            onClick = onMore,
-            colors = ButtonDefaults.textButtonColors(contentColor = WizAccent),
-            modifier = Modifier.align(Alignment.End)
-        ) {
-            Text("All stamp settings")
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-        }
-    }
-}

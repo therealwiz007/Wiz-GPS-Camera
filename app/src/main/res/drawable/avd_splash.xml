@@ -1,0 +1,20 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_splash_icon">
+    <!-- Pin drops 8 units and settles; the ground ripple fades out (<= 700 ms). -->
+    <target android:name="pin">
+        <aapt:attr name="android:animation" xmlns:aapt="http://schemas.android.com/aapt">
+            <objectAnimator android:propertyName="translateY" android:valueFrom="-8" android:valueTo="0"
+                android:duration="420" android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+    <target android:name="ripple">
+        <aapt:attr name="android:animation" xmlns:aapt="http://schemas.android.com/aapt">
+            <set>
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.4" android:valueTo="1"
+                    android:startOffset="260" android:duration="440" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.4" android:valueTo="1"
+                    android:startOffset="260" android:duration="440" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

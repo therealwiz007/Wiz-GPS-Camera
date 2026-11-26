@@ -1,43 +1,29 @@
-Wiz GPS Camera is a GPS map camera that stamps every photo with where and when it was taken: the street address, a live map, latitude and longitude, and the date and time. Use it as proof of a site visit, an inspection, a delivery or work done.
+Wiz GPS Camera stamps exact location, address, map and time on your photos,
+so every picture is proof of where and when it was taken.
 
-LOCATION STAMP ON EVERY PHOTO
-• Full address and place name, added automatically
-• Small live map with a pin, printed right on the photo
-• Latitude and longitude in decimal, DMS, UTM or MGRS
-• Date and time in 12 or 24 hour format, with 21 time zones
-• Optional extras: altitude, GPS accuracy, speed, compass heading, Plus Code, weather and your own logo
-• Add a note or quick tags such as Before, After or Damage
+PROOF YOU CAN TRUST
+• Fresh, precise GPS: the camera opens only after a fresh fix (accuracy shown)
+• Network time check warns you if the phone clock is wrong
+• Mock-location detection: flag the photo or block capture
+• Tamper evidence: each saved photo is fingerprinted (SHA-256) and the gallery
+  marks edited files (verifiable in this app on the same phone)
 
-PHOTOS YOU CAN TRUST
-• The camera opens only after a fresh, precise GPS fix
-• Mock (fake) GPS detection: flag it on the photo, or block the shot
-• Time is checked against network time, so a wrong phone clock can't change it
-• Each photo gets a unique ID, and the gallery shows whether a photo was edited after it was taken
-• GPS coordinates are also written to the photo's EXIF data
+YOUR STAMP, YOUR WAY
+• Styles: Glass, Classic, Light, Bold, Minimal; templates with map, compact or text
+• Address, coordinates (decimal, DMS, UTM, MGRS), altitude, compass, speed,
+  plus code, weather (optional), notes, project name, your logo
+• 21 time zones, 12/24-hour clock, metric or imperial
 
-PROJECTS AND REPORTS FOR FIELD WORK
-• File photos by project: each project gets its own folder, and its name goes on the stamp
-• Search photos by note, address or ID, and filter by project
-• See every photo on a map
-• Export a PDF report, CSV spreadsheet or KML file for Google Earth, then share it
+PRO CAMERA
+• Up to 16 MP, high-quality capture, flash and torch, exposure, zoom presets,
+  grid, level, timer, burst, volume-key shutter
 
-STAMP STYLES
-• Layouts: full with map, compact, or text only
-• Styles: Glass, Classic, Light, Bold and Minimal
-• Choose the position, accent colour, card opacity and text size
-• A live preview on the camera shows exactly how the photo will look
+FIELD WORK
+• Projects and quick tags (Before, After, Damage…)
+• Gallery with search, filters and a map of your photos
+• Export PDF reports, CSV or KML (Google Earth)
 
-A CAMERA THAT FEELS FAMILIAR
-• Big shutter in the middle, gallery on one side and lens switch on the other
-• Flash (off, auto, on, torch), self-timer, burst, grid, level and exposure
-• Pinch or tap to zoom, tap to focus
-• Volume buttons take a photo
-• Smooth animations that stay light on battery and memory, even on low-end phones
-
-WHO IT'S FOR
-Site engineers, surveyors, construction and real-estate teams, insurance and loss assessors, delivery and field-service staff, petrol pump and dealer audits, sales visits, travellers and anyone who needs a photo with date, time and location.
-
-PRIVACY
-Photos stay on your phone. There is no account, no sign-up and no ads. Location is used only to make the stamp. The internet is used only for map tiles, the address lookup, network time and optional weather.
+Photos stay on your phone and no account is needed. The internet is used for
+map tiles, address lookup, network time, optional weather and Play updates.
 
 Made by Wiz Labs.

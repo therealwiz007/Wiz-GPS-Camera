@@ -1,0 +1,8 @@
+Wiz GPS Camera 3.0.0:
+• New Midnight look: navy and electric teal on every screen
+• New icon, splash screen and Iris, your GPS guide
+• Cleaner camera: glass header bar, quick row, teal shutter
+• 3-step GPS check with live accuracy
+• Export card, About and privacy link in Settings
+• Update prompt through Google Play
+Photos, stamps, proof ledger and exports work as before.

@@ -1,3 +1,6 @@
 <resources>
-    <string name="app_name">Wiz GPS Camera</string>
+    <!-- Launcher label: no "Wiz" (house rule 10). -->
+    <string name="app_name">GPS Camera</string>
+    <!-- Full product name for About, share text and the wordmark. -->
+    <string name="app_full_name">Wiz GPS Camera</string>
 </resources>

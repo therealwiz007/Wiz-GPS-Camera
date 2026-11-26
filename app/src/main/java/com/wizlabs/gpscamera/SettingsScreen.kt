@@ -38,6 +38,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Info
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -172,16 +175,16 @@ fun SettingsScreen(
     }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = WizAccent,
-        unfocusedBorderColor = WizLine,
-        cursorColor = WizAccent,
-        focusedLabelColor = WizAccent
+        focusedBorderColor = GpsTeal,
+        unfocusedBorderColor = GpsLine,
+        cursorColor = GpsTeal,
+        focusedLabelColor = GpsTeal
     )
 
     Column(
         Modifier
             .fillMaxSize()
-            .background(WizNavy)
+            .background(GpsBg)
             .statusBarsPadding()
     ) {
         Row(
@@ -189,9 +192,9 @@ fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = WizText)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GpsSilver)
             }
-            Text("Settings", color = WizText, style = MaterialTheme.typography.titleLarge)
+            Text("Settings", color = GpsSilver, style = MaterialTheme.typography.titleLarge)
         }
 
         Column(
@@ -205,7 +208,7 @@ fun SettingsScreen(
             StampPreview(s, location, sensors, projects.byId(s.projectId)?.name ?: "")
             Text(
                 "Live preview — every change below shows here instantly.",
-                color = WizMuted,
+                color = GpsMuted,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp, start = 4.dp)
             )
@@ -229,7 +232,7 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconTile(Icons.Filled.Palette)
                         Spacer(Modifier.width(14.dp))
-                        Text("Accent colour", color = WizText, style = MaterialTheme.typography.bodyLarge)
+                        Text("Accent colour", color = GpsSilver, style = MaterialTheme.typography.bodyLarge)
                     }
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -240,12 +243,12 @@ fun SettingsScreen(
                                     .size(34.dp)
                                     .clip(CircleShape)
                                     .background(Color(argb))
-                                    .border(if (picked) 3.dp else 1.dp, if (picked) Color.White else WizLine, CircleShape)
+                                    .border(if (picked) 3.dp else 1.dp, if (picked) Color.White else GpsLine, CircleShape)
                                     .clickable(onClickLabel = name) { repo.update { it.copy(accent = argb) } }
                                     .semantics { contentDescription = name; selected = picked },
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (picked) Icon(Icons.Filled.Check, contentDescription = null, tint = WizNavy, modifier = Modifier.size(18.dp))
+                                if (picked) Icon(Icons.Filled.Check, contentDescription = null, tint = GpsBg, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -262,7 +265,7 @@ fun SettingsScreen(
                 }
                 Text(
                     "Example: " + Geo.format(28.6129, 77.2295, s.coordFormat),
-                    color = WizMuted,
+                    color = GpsMuted,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(start = 48.dp, bottom = 6.dp)
                 )
@@ -309,7 +312,7 @@ fun SettingsScreen(
             SettingsCard {
                 Text(
                     "Tap a tag in the note dialog on the camera to add it to the note. Tap a tag here to remove it.",
-                    color = WizMuted,
+                    color = GpsMuted,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(top = 8.dp)
                 )
@@ -349,7 +352,7 @@ fun SettingsScreen(
                 if (projects.projects.isEmpty()) {
                     Text(
                         "No projects yet. Create one from the Project pill on the camera screen.",
-                        color = WizMuted,
+                        color = GpsMuted,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(vertical = 10.dp)
                     )
@@ -357,20 +360,20 @@ fun SettingsScreen(
                 projects.projects.sortedByDescending { it.createdMs }.forEachIndexed { i, p ->
                     if (i > 0) CardDivider()
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconTile(Icons.Filled.Folder, if (p.id == s.projectId) WizAccent else WizMuted)
+                        IconTile(Icons.Filled.Folder, if (p.id == s.projectId) GpsTeal else GpsMuted)
                         Spacer(Modifier.width(14.dp))
                         Text(
                             p.name,
-                            color = WizText,
+                            color = GpsSilver,
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (p.id == s.projectId) FontWeight.SemiBold else FontWeight.Normal,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = { renaming = p }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Rename ${p.name}", tint = WizMuted)
+                            Icon(Icons.Filled.Edit, contentDescription = "Rename ${p.name}", tint = GpsMuted)
                         }
                         IconButton(onClick = { deleting = p }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete ${p.name}", tint = WizBad)
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete ${p.name}", tint = GpsBad)
                         }
                     }
                 }
@@ -419,8 +422,8 @@ fun SettingsScreen(
                                 repo.update { it.copy(logoVersion = it.logoVersion + 1) }
                             },
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, WizLine)
-                        ) { Text("Remove", color = WizText) }
+                            border = BorderStroke(1.dp, GpsLine)
+                        ) { Text("Remove", color = GpsSilver) }
                     }
                 }
                 OutlinedTextField(
@@ -485,7 +488,7 @@ fun SettingsScreen(
                         "warning is printed if the phone’s clock is wrong. Each saved photo gets an integrity " +
                         "record on this device; the gallery marks edited files. This can only be checked " +
                         "inside this app, on this phone.",
-                    color = WizMuted,
+                    color = GpsMuted,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = 10.dp)
                 )
@@ -495,23 +498,59 @@ fun SettingsScreen(
             OutlinedButton(
                 onClick = { repo.update { it.copy(onboardingDone = false) } },
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, WizLine),
+                border = BorderStroke(1.dp, GpsLine),
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                Icon(Icons.Filled.School, contentDescription = null, tint = WizAccent, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.School, contentDescription = null, tint = GpsTeal, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Show the intro again", color = WizText)
+                Text("Show the intro again", color = GpsSilver)
             }
             Spacer(Modifier.height(20.dp))
             val version = remember {
                 runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
             }
-            Text(
-                "Wiz GPS Camera $version · Wiz Labs",
-                color = WizMuted.copy(alpha = .7f),
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
+            AdSlot("adfree")
+            AdSlot("settings")
+            SectionTitle("About", Icons.Filled.Info)
+            SettingsCard {
+                Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        // Wordmark: "Wiz" 700 + product word 500, GPS in teal (handoff family layer).
+                        Text(
+                            androidx.compose.ui.text.buildAnnotatedString {
+                                withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)) { append("Wiz ") }
+                                withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Medium, color = GpsTeal)) { append("GPS") }
+                                withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Medium)) { append(" Camera") }
+                            },
+                            color = GpsSilver,
+                            fontFamily = SoraFamily,
+                            fontSize = 22.sp
+                        )
+                        Text("Version $version · Made by Wiz Labs", color = GpsMuted, style = MonoSmall)
+                    }
+                }
+                CardDivider()
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://therealwiz007.github.io/Wiz-GPS-Camera/privacy-policy.html")
+                                    )
+                                )
+                            }
+                        }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconTile(Icons.Filled.Shield)
+                    Spacer(Modifier.width(14.dp))
+                    Text("Privacy policy", color = GpsSilver, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
             Spacer(Modifier.height(28.dp))
         }
     }
@@ -520,7 +559,7 @@ fun SettingsScreen(
         var name by remember(p.id) { mutableStateOf(p.name) }
         AlertDialog(
             onDismissRequest = { renaming = null },
-            containerColor = WizPanel,
+            containerColor = GpsSurface,
             title = { Text("Rename project") },
             text = {
                 OutlinedTextField(
@@ -537,14 +576,14 @@ fun SettingsScreen(
                     renaming = null
                 }) { Text("Save") }
             },
-            dismissButton = { TextButton(onClick = { renaming = null }) { Text("Cancel", color = WizMuted) } }
+            dismissButton = { TextButton(onClick = { renaming = null }) { Text("Cancel", color = GpsMuted) } }
         )
     }
 
     deleting?.let { p ->
         AlertDialog(
             onDismissRequest = { deleting = null },
-            containerColor = WizPanel,
+            containerColor = GpsSurface,
             title = { Text("Delete “${p.name}”?") },
             text = { Text("The project is removed from the list. Its photos stay in your gallery.") },
             confirmButton = {
@@ -552,9 +591,9 @@ fun SettingsScreen(
                     projects.delete(p.id)
                     if (repo.settings.projectId == p.id) repo.update { it.copy(projectId = "") }
                     deleting = null
-                }) { Text("Delete", color = WizBad) }
+                }) { Text("Delete", color = GpsBad) }
             },
-            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel", color = WizMuted) } }
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel", color = GpsMuted) } }
         )
     }
 }
@@ -572,15 +611,15 @@ private fun LabeledSlider(
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconTile(icon)
             Spacer(Modifier.width(14.dp))
-            Text(label, color = WizText, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Text("$value%", color = WizMuted, style = MaterialTheme.typography.labelLarge)
+            Text(label, color = GpsSilver, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Text("$value%", color = GpsMuted, style = MaterialTheme.typography.labelLarge)
         }
         Slider(
             value = value.toFloat(),
             onValueChange = { onChange(it.roundToInt()) },
             valueRange = min.toFloat()..max.toFloat(),
             steps = (max - min) / 5 - 1,
-            colors = SliderDefaults.colors(thumbColor = WizAccent, activeTrackColor = WizAccent, inactiveTrackColor = WizPanelHi)
+            colors = SliderDefaults.colors(thumbColor = GpsTeal, activeTrackColor = GpsTeal, inactiveTrackColor = GpsSurfaceHi)
         )
     }
 }
@@ -620,33 +659,8 @@ private fun StampPreview(s: AppSettings, location: LocationEngine, sensors: Sens
             .fillMaxWidth()
             .aspectRatio(3f / 2f)
             .clip(RoundedCornerShape(22.dp))
-            .background(Brush.verticalGradient(listOf(Color(0xFFF7C46C), Color(0xFFD9774A), Color(0xFF4A2632))))
     ) {
-        // A simple landscape so the preview reads as "a photo".
-        Canvas(Modifier.fillMaxSize()) {
-            drawCircle(Color(0x55FFF4C2), radius = size.minDimension * .10f, center = Offset(size.width * .78f, size.height * .22f))
-            val far = Path().apply {
-                moveTo(0f, size.height * .62f)
-                lineTo(size.width * .22f, size.height * .42f)
-                lineTo(size.width * .40f, size.height * .58f)
-                lineTo(size.width * .62f, size.height * .36f)
-                lineTo(size.width, size.height * .60f)
-                lineTo(size.width, size.height)
-                lineTo(0f, size.height)
-                close()
-            }
-            drawPath(far, Color(0xFF8A4448))
-            val near = Path().apply {
-                moveTo(0f, size.height * .78f)
-                lineTo(size.width * .35f, size.height * .64f)
-                lineTo(size.width * .70f, size.height * .76f)
-                lineTo(size.width, size.height * .68f)
-                lineTo(size.width, size.height)
-                lineTo(0f, size.height)
-                close()
-            }
-            drawPath(near, Color(0xFF3A2029))
-        }
+        SampleScene()
         bitmap?.let {
             Image(
                 bitmap = it.asImageBitmap(),

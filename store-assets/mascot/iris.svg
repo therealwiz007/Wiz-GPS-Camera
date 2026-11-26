@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+  <!-- Iris: electric-teal GPS pin whose head is a camera lens. Same 100x100 geometry as ui/mascot/IrisArt.kt. -->
+  <defs>
+    <linearGradient id="pin" x1="50" y1="6" x2="50" y2="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00E5C7"/><stop offset="1" stop-color="#00B39C"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="50" cy="85" rx="22" ry="4.5" fill="#00E5C7" fill-opacity=".25"/>
+  <path d="M50 78C50 78 23 54 23 33A27 27 0 0 1 77 33C77 54 50 78 50 78Z" fill="url(#pin)"/>
+  <circle cx="50" cy="33" r="22" fill="#EAF2FF"/>
+  <circle cx="50" cy="33" r="18" fill="#060B18"/>
+  <path d="M35.5 32Q37 26 43 24.5" fill="none" stroke="#00E5C7" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M37.5 27Q42.5 24.2 47 26.5M53 26.5Q57.5 24.2 62.5 27" fill="none" stroke="#EAF2FF" stroke-width="1.6" stroke-linecap="round"/>
+  <ellipse cx="42.5" cy="34" rx="3" ry="4.5" fill="#EAF2FF"/>
+  <ellipse cx="57.5" cy="34" rx="3" ry="4.5" fill="#EAF2FF"/>
+</svg>

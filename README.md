@@ -4,11 +4,24 @@ Wiz Labs Android GPS camera starter project.
 
 ## Identity
 - Application ID: `com.wizlabs.gpscamera`
-- Version: 2.1.0 (versionCode 7)
+- Version: 3.0.0 (versionCode 9)
 - Minimum Android: 10 / API 29
 - Compile / target SDK: 36
 
-## New in 2.1 — Wiz look and motion
+## New in 3.0.0 — Midnight Survey redesign
+
+- New identity: midnight navy + electric-teal GPS pin on every screen (`GpsTokens.kt`, `GpsType.kt`), Sora + Roboto Mono (Latin subset, OFL, 80 KB)
+- Text-free vector launcher icon + monochrome (themed) layer, animated splash with the full wordmark, new Play icon; launcher label is now "GPS Camera"
+- Mascot **Iris** (code-drawn, no dependency): onboarding, GPS gate, empty gallery, export card. Never on the camera, viewer or stamp. Brain in `engine/IrisBrain.kt` with unit tests
+- Camera: glass top bar (project, level, note, stamp style, settings), quick row (flash, timer, ratio, live GPS chip, grid, exposure), teal shutter ring. Behaviour is unchanged; code split into `camera/`
+- GPS gate: 3 clear steps with live accuracy meter; Iris "locked" then fade to the camera
+- Gallery: teal verified / amber edited badges, mono date headers, export-done card, map zoom fix for photos taken at one spot
+- Settings: About with wordmark and privacy-policy link
+- Ads-ready, ad-SDK-free: `wiz-ads` 0.3 (`--no-sdk`), `AdsSetup.ENABLED=false`, no ad SDK, no AD_ID. Google Play update popup (`wiz-update`), never over the camera
+- Store art rebuilt from the real app: `store-assets/` (icon, feature graphic, 8 screenshots, Iris SVG/PNG), listing text in `fastlane/metadata/android/en-US`
+- Unchanged on purpose: capture quality, EXIF, stamp geometry, integrity ledger and key, export formats, project folders
+
+## Previously: 2.1 — Wiz look and motion (superseded by 3.0.0; the yellow theme is gone)
 
 - Wiz black-and-yellow theme across every screen, new launcher icon (drawn in `tools/StoreArt.java`)
 - Camera: GPS lock glyph (sonar rings while searching, reticle when locked), compass rose, viewfinder corners,
@@ -110,13 +123,10 @@ Never commit the JKS or passwords into the repository.
 Camera and precise location are requested at runtime. The app opens only after precise location is allowed, GPS is on and a fresh fix has arrived (see the GPS start screen).
 
 
-## Brand assets integrated
-- Android launcher icons (legacy density PNGs and adaptive icon XML)
-- Approved navy/teal Wiz GPS Camera icon and brand colors
-- Splash artwork, full logo and Play Store icon in `app/src/main/assets/`
-- HTML privacy policy at `privacy-policy.html`
-
-The splash artwork and Play Store artwork are included as assets; the splash artwork is not yet wired to the Android SplashScreen API. Review the privacy policy contact email and final map/geocoding providers before publishing.
+## Brand assets
+- Vector adaptive launcher icon (`res/drawable/ic_launcher_*.xml`), animated splash (`avd_splash.xml`) and wordmark branding
+- Store art sources: `store-assets/_src/*.html`, `store-assets/icon.svg`, `store-assets/mascot/iris.svg`; icon concepts in `store-assets/icon-concepts/`
+- Privacy policy: `privacy-policy.html` (repo root) and `app/src/main/assets/privacy-policy.html`; review the contact email before publishing
 
 ## Production builds
 GitHub Actions workflow `.github/workflows/android.yml` builds a signed release APK and AAB using repository secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`.

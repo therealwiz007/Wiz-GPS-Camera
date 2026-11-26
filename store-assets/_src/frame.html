@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:Sora;src:url("../../app/src/main/res/font/gps_sora.ttf");font-weight:100 800}
+html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:#060B18;font-family:Sora}
+.bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 38% at 50% 98%,rgba(0,229,199,.38),rgba(0,229,199,0) 70%),radial-gradient(ellipse 80% 40% at 50% 0%,#0D1528,#060B18 70%)}
+h1{position:absolute;top:44px;left:0;right:0;margin:0;text-align:center;color:#EAF2FF;font-weight:700;font-size:68px;line-height:76px;letter-spacing:-1px;padding:0 70px;box-sizing:border-box}
+h1 b{color:#00E5C7;font-weight:700}
+.dev{position:absolute;left:160px;top:230px;width:760px;height:1689px;border-radius:44px 44px 0 0;overflow:hidden;box-shadow:0 0 0 3px #1B2742,0 30px 90px rgba(0,0,0,.6)}
+.dev img{width:760px;height:1689px;display:block}
+</style></head><body><div class="bg"></div><h1 id="h"></h1><div class="dev"><img id="i"></div>
+<script>
+const H={1:'Location &amp; time on every photo',2:'Exact <b>GPS</b>, fresh fix',3:'Proof photos can’t fake',4:'Stamp styles for every job',5:'Projects for field work',6:'All your photos on a map',7:'<b>PDF</b> reports in one tap',8:'Pro camera controls'};
+const n=new URLSearchParams(location.search).get('n');
+document.getElementById('h').innerHTML=H[n];document.getElementById('i').src='../raw/'+n+'.png';
+</script></body></html>

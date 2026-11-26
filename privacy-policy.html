@@ -31,7 +31,7 @@
     <div class="brand">WIZ LABS</div>
     <h1>Privacy Policy</h1>
     <p><strong>Wiz GPS Camera</strong></p>
-    <p class="meta">Effective date: 1 November 2026 · Version 1.1</p>
+    <p class="meta">Effective date: 26 November 2026 · Version 1.2</p>
     <p>This policy explains how Wiz GPS Camera accesses and uses information when you use the app.</p>
   </header>
   <article>
@@ -46,7 +46,7 @@
     </ul>
 
     <h2>2. How information is used</h2>
-    <p>Camera and location information is used to provide the app's core features: capturing photographs and adding a location stamp. Location is not required to take a photograph; if it is unavailable or permission is denied, location fields may be omitted or shown as unavailable.</p>
+    <p>Camera and location information is used to provide the app's core features: capturing photographs and adding a location stamp. The camera opens only after precise location is allowed, GPS is on and a fresh fix exists, so that every stamp is accurate. The app does not use location in the background.</p>
 
     <h2>3. Storage and sharing</h2>
     <p>The app is designed to save captured photographs on your device. The app does not require an account. It does not provide a Wiz Labs cloud photo-storage service. If you choose to share a photograph, the receiving app or service will handle it under its own privacy policy.</p>
@@ -60,10 +60,13 @@
     <ul>
       <li><strong>OpenStreetMap tile servers</strong> (tile.openstreetmap.org): map images for the stamp. The requested map area, and your IP address, are visible to the tile server.</li>
       <li><strong>Google Play services Location</strong> and the <strong>Android Geocoder</strong> (which may use Google's geocoding service): to obtain your location and turn coordinates into an address.</li>
+      <li><strong>Google Play (in-app updates):</strong> the app asks Google Play whether a newer version is available and may offer to download it. Google Play handles this under its own terms; Wiz Labs receives no personal data from it.</li>
       <li><strong>Open-Meteo</strong> (api.open-meteo.com): only if the Weather field is enabled; your approximate coordinates are sent to get the temperature.</li>
       <li><strong>Google</strong> (www.google.com): a small request to read the server's clock, used to verify the time printed on photos. No personal data is sent.</li>
     </ul>
 
+    <h2>5a. Advertising</h2>
+    <p>No ads are shown in this version and the app contains no advertising SDK. Ads provided by Google AdMob may be added in a later version; this policy will be updated before that happens.</p>
     <h2>6. Data security and retention</h2>
     <p>Photos saved by the app remain in device storage unless you choose to share or move them. You can manage or delete those photos using the app or your device's gallery/file-management tools. No online account is needed to use the app.</p>
 
@@ -72,8 +75,8 @@
 
     <h2>8. Your choices</h2>
     <ul>
-      <li>You can deny camera or location permissions in Android settings. Camera permission is needed to take photos; location permission is optional.</li>
-      <li>You can turn off location stamping by denying location permission or, when available, disabling location fields in stamp settings.</li>
+      <li>You can deny camera or location permissions in Android settings. The camera needs both to open, because its purpose is proof of place and time.</li>
+      <li>You can hide individual location fields on the stamp in Settings.</li>
       <li>You control whether and where you share captured photographs.</li>
     </ul>
 

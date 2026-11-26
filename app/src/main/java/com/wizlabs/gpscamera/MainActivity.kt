@@ -34,6 +34,8 @@ import org.osmdroid.config.Configuration
 private enum class Screen { CAMERA, GALLERY, SETTINGS }
 
 class MainActivity : ComponentActivity() {
+    private var update: com.wizlabs.update.WizUpdate? = null
+
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
         if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) MotionIdle.onTouch()
         return super.dispatchTouchEvent(ev)
@@ -50,7 +52,13 @@ class MainActivity : ComponentActivity() {
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
         TimeSync.init(applicationContext)
         setContent { ProvideWizMotion { WizApp() } }
+        AdsSetup.install(applicationContext)
+        update = createWizUpdate(this)
     }
+
+    override fun onResume() { super.onResume(); update?.onResume() }
+    override fun onPause() { update?.onPause(); super.onPause() }
+    override fun onDestroy() { update?.onDestroy(); update = null; super.onDestroy() }
 
     // Volume up/down act as a shutter button while the camera screen is showing.
     private fun isVolume(keyCode: Int) =
@@ -104,12 +112,14 @@ private fun WizApp() {
         }
     }
 
+    // The update popup must never appear over the camera, onboarding or the GPS gate.
+    androidx.compose.runtime.SideEffect { GpsUi.busy = !repo.settings.onboardingDone || screen == Screen.CAMERA }
     BackHandler(enabled = screen != Screen.CAMERA) { screen = Screen.CAMERA }
     val peek = LocalBackPeek.current
     // Once the back transition has played, drop the peek so the next visit starts full size.
     LaunchedEffect(screen) { kotlinx.coroutines.delay(650); if (peek != null && !peek.dragging) peek.reset() }
 
-    WizTheme {
+    GpsTheme {
         if (!repo.settings.onboardingDone) {
             Onboarding(onDone = { repo.update { it.copy(onboardingDone = true) } })
         } else {
