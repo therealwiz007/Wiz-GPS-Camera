@@ -48,7 +48,7 @@ Confirmed in source: `AdsSetup.ENABLED = false`; `engine/IrisBrain.kt`; `ui/masc
 
 ## Privacy policy
 - Live URL returned HTTP 200 before the merge. A Pages rebuild was started by the merge; the new text is not verified live yet.
-- **Open item:** contact email is still the placeholder `privacy@wizlabs.app`, and a "Release note" paragraph still asks to replace it before publishing. Needs the user to confirm the real address.
+- Contact email set to `blazewizofficial@gmail.com` (user-provided); "Release note" paragraph removed. Live Pages copy verified (2026-11-26). The in-app copy in `app/src/main/assets` is updated in the repo but ships only in the next AAB.
 
 ## Data safety (saved and submitted)
 - Was "No" (carried from 2.2.0). Changed to **Yes**, because weather lookup sends coordinates to Open-Meteo and the address lookup uses the platform Geocoder.
@@ -67,7 +67,7 @@ Confirmed in source: `AdsSetup.ENABLED = false`; `engine/IrisBrain.kt`; `ui/masc
 
 ## Outstanding issues
 1. Data safety "No" conflicts with code. Decide and update before submit.
-2. Privacy policy placeholder contact email. Confirm real address.
+2. Privacy contact email updated (see above); in-app asset copy ships next build.
 3. N7 CPU target (≤8%) not met on the emulator; needs a real phone check.
 4. Not tested: upgrade over 2.2.0 (ledger), CSV/KML re-test, accessibility, font scale, RTL, and the update popup on screens other than camera (per STATUS.md).
 5. Dark-only UI; Settings not regrouped; screenshots use the emulator's low-res virtual camera scene.
