@@ -1,6 +1,6 @@
 <resources>
-    <color name="wiz_navy">#14171C</color>
-    <color name="wiz_teal">#FFC400</color>
-    <color name="wiz_silver">#E6F0FF</color>
-    <color name="wiz_bg">#0B0D10</color>
+    <color name="gps_bg">#060B18</color>
+    <color name="gps_surface">#0D1528</color>
+    <color name="gps_teal">#00E5C7</color>
+    <color name="gps_silver">#EAF2FF</color>
 </resources>

@@ -26,6 +26,8 @@ object GpsLightHex {
     const val MUTED = 0x56637C
     const val TEAL = 0x00897A
     const val ON_TEAL = 0xFFFFFF
+    // White on #00897A is only 4.32:1 (handoff said 4.5). Light buttons must use TEAL_DEEP.
+    const val TEAL_DEEP = 0x00695E
 }
 
 object GpsDarkHex {

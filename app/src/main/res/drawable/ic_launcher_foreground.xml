@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Electric-teal map pin whose head is a camera lens. No text, no letters. -->
+    <path android:pathData="M54,84C54,84 31,64 31,47A23,23 0 0,1 77,47C77,64 54,84 54,84Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="54" android:startY="24" android:endX="54" android:endY="84">
+                <item android:offset="0" android:color="#00E5C7" />
+                <item android:offset="1" android:color="#00B39C" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#EAF2FF" android:pathData="M39,47a15,15 0 1,0 30,0a15,15 0 1,0 -30,0z" />
+    <path android:fillColor="#060B18" android:pathData="M42.5,47a11.5,11.5 0 1,0 23,0a11.5,11.5 0 1,0 -23,0z" />
+    <path android:pathData="M47.6,44.4A7.6,7.6 0 0,1 53,40" android:strokeColor="#00E5C7" android:strokeWidth="2.4" android:strokeLineCap="round" />
+</vector>

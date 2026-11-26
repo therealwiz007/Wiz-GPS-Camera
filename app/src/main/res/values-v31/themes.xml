@@ -1,0 +1,10 @@
+<resources>
+    <!-- Android 12+: the system splash also shows the full "Wiz GPS Camera" wordmark (handoff §12.1). -->
+    <style name="Theme.Wiz.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/gps_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/avd_splash</item>
+        <item name="windowSplashScreenAnimationDuration">700</item>
+        <item name="android:windowSplashScreenBrandingImage">@drawable/splash_branding</item>
+        <item name="postSplashScreenTheme">@style/Theme.WizGpsCamera</item>
+    </style>
+</resources>
