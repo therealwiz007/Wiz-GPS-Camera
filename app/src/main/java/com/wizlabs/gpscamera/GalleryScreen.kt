@@ -225,6 +225,8 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
         }
     }
 
+    var exportDone by remember { mutableStateOf<Triple<android.net.Uri, Export.Kind, String>?>(null) }
+
     fun runExport(kind: Export.Kind, list: List<PhotoItem>) {
         if (list.isEmpty()) {
             Toast.makeText(context, "No photos to export", Toast.LENGTH_SHORT).show()
@@ -245,8 +247,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
             }
             exporting = null
             result.onSuccess {
-                Toast.makeText(context, "Saved to Downloads/Wiz GPS Camera", Toast.LENGTH_SHORT).show()
-                Export.share(context, it.first, kind, it.second)
+                exportDone = Triple(it.first, kind, it.second)
             }.onFailure {
                 Toast.makeText(context, "Export failed: ${it.localizedMessage}", Toast.LENGTH_LONG).show()
             }
@@ -458,7 +459,7 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                             Text(
                                 label,
                                 color = GpsSilver,
-                                style = MaterialTheme.typography.titleSmall,
+                                style = MonoBody,
                                 modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 4.dp)
                             )
                         }
@@ -531,6 +532,27 @@ fun GalleryScreen(repo: SettingsRepo, projects: ProjectStore, onBack: () -> Unit
                 }
             },
             onDismiss = { moveFor = null }
+        )
+    }
+
+    exportDone?.let { (uri, kind, name) ->
+        AlertDialog(
+            onDismissRequest = { exportDone = null },
+            containerColor = GpsSurface,
+            confirmButton = {
+                TextButton(onClick = { Export.share(context, uri, kind, name); exportDone = null }) { Text("Share", color = GpsTeal) }
+            },
+            dismissButton = { TextButton(onClick = { exportDone = null }) { Text("Done", color = GpsMuted) } },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Iris(Expression.PROUD, Action.SPARKLE, 56.dp)
+                    Spacer(Modifier.width(14.dp))
+                    Column {
+                        Text("Report saved to Downloads.", color = GpsSilver, style = MaterialTheme.typography.titleSmall)
+                        Text(name, color = GpsMuted, style = MonoSmall, maxLines = 2)
+                    }
+                }
+            }
         )
     }
 
@@ -694,8 +716,9 @@ private fun PhotoCell(item: PhotoItem, isSelected: Boolean, onClick: () -> Unit,
 @Composable
 private fun VerifyBadge(result: Integrity.Result?, modifier: Modifier = Modifier) {
     val (icon, tint, label) = when (result) {
-        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, GpsGood, "Verified original")
-        Integrity.Result.MODIFIED, Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, GpsBad, "Modified")
+        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, GpsTeal, "Verified original")
+        Integrity.Result.MODIFIED -> Triple(Icons.Filled.Warning, GpsAmber, "Edited")
+        Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, GpsBad, "Modified")
         else -> return
     }
     Box(
@@ -710,8 +733,8 @@ private fun VerifyBadge(result: Integrity.Result?, modifier: Modifier = Modifier
 @Composable
 private fun VerifyChip(result: Integrity.Result?, modifier: Modifier = Modifier) {
     val (icon, tint, label) = when (result) {
-        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, GpsGood, "Verified original")
-        Integrity.Result.MODIFIED -> Triple(Icons.Filled.Warning, GpsBad, "Edited after capture")
+        Integrity.Result.VERIFIED -> Triple(Icons.Filled.Verified, GpsTeal, "Verified original")
+        Integrity.Result.MODIFIED -> Triple(Icons.Filled.Warning, GpsAmber, "Edited after capture")
         Integrity.Result.LEDGER_TAMPERED -> Triple(Icons.Filled.Warning, GpsBad, "Record tampered")
         else -> return
     }

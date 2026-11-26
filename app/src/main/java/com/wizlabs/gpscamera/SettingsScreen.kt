@@ -38,6 +38,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Info
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -506,12 +509,46 @@ fun SettingsScreen(
             val version = remember {
                 runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
             }
-            Text(
-                "Wiz GPS Camera $version · Wiz Labs",
-                color = GpsMuted.copy(alpha = .7f),
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
+            SectionTitle("About", Icons.Filled.Info)
+            SettingsCard {
+                Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        // Wordmark: "Wiz" 700 + product word 500, GPS in teal (handoff family layer).
+                        Text(
+                            androidx.compose.ui.text.buildAnnotatedString {
+                                withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)) { append("Wiz ") }
+                                withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Medium, color = GpsTeal)) { append("GPS") }
+                                withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Medium)) { append(" Camera") }
+                            },
+                            color = GpsSilver,
+                            fontFamily = SoraFamily,
+                            fontSize = 22.sp
+                        )
+                        Text("Version $version · Made by Wiz Labs", color = GpsMuted, style = MonoSmall)
+                    }
+                }
+                CardDivider()
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://therealwiz007.github.io/Wiz-GPS-Camera/privacy-policy.html")
+                                    )
+                                )
+                            }
+                        }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconTile(Icons.Filled.Shield)
+                    Spacer(Modifier.width(14.dp))
+                    Text("Privacy policy", color = GpsSilver, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
             Spacer(Modifier.height(28.dp))
         }
     }
