@@ -58,6 +58,9 @@ enum class FlashChoice(val label: String) {
     }
 }
 
+/** The pre-3.0 default accent (old Wiz yellow) as a signed ARGB int. Only used for the one-time migration. */
+const val LEGACY_YELLOW_ARGB = -15360
+
 /** Accent colours offered for the stamp (ARGB). */
 val STAMP_ACCENTS = listOf(
     "Electric Teal" to 0xFF00E5C7.toInt(),
@@ -66,7 +69,7 @@ val STAMP_ACCENTS = listOf(
     "Lime" to 0xFF9CCC65.toInt(),
     "Coral" to 0xFFFF7043.toInt(),
     "Sky" to 0xFF64B5F6.toInt(),
-    "Yellow" to 0xFFFFC400.toInt(),
+    "Gold" to 0xFFFFD166.toInt(),
     "White" to 0xFFFFFFFF.toInt()
 )
 
@@ -166,7 +169,7 @@ class SettingsRepo(context: Context) {
         // 3.0.0: the old default accent (yellow) moves to the new Electric Teal once. Later choices are kept.
         if (!prefs.getBoolean("accentMigrated3", false)) {
             val e = prefs.edit().putBoolean("accentMigrated3", true)
-            if (prefs.getInt("accent", d.accent) == 0xFFFFC400.toInt()) e.putInt("accent", d.accent)
+            if (prefs.getInt("accent", d.accent) == LEGACY_YELLOW_ARGB) e.putInt("accent", d.accent)
             e.apply()
         }
         return AppSettings(

@@ -644,11 +644,12 @@ private fun PhotoMap(items: List<PhotoItem>, metas: Map<Long, PhotoMeta?>, onOpe
                 })
             }
             map.post {
-                if (located.size == 1) {
+                val box = BoundingBox.fromGeoPointsSafe(located.map { it.third })
+                // One photo, or several taken at the same spot: a zero-size box would zoom out to the whole world.
+                if (located.size == 1 || (box.latitudeSpan < 0.0005 && box.longitudeSpan < 0.0005)) {
                     map.controller.setZoom(17.0)
-                    map.controller.setCenter(located[0].third)
+                    map.controller.setCenter(box.centerWithDateLine)
                 } else {
-                    val box = BoundingBox.fromGeoPointsSafe(located.map { it.third })
                     map.zoomToBoundingBox(box.increaseByScale(1.3f), false, 64)
                     if (map.zoomLevelDouble > 18.0) map.controller.setZoom(18.0)
                 }
